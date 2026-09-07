@@ -108,6 +108,8 @@ input {
   padding: 8px 12px;
 }
 .board {
+  --board-color-a: #d3687f;
+  --board-color-b: #cbce91;
   width: min(100%, calc(100dvh - 290px));
   min-width: min(100%, 280px);
   aspect-ratio: 1;
@@ -129,6 +131,8 @@ input {
   place-items: center;
   position: relative;
 }
+.board-color-a { background:var(--board-color-a); }
+.board-color-b { background:var(--board-color-b); }
 .stone {
   position: relative;
   width: 78%;
@@ -184,19 +188,10 @@ input {
   background: #000;
   border-color: #000;
 }
-.six-highlight .stone {
-  outline: 2px solid #777;
-  outline-offset: 2px;
-  animation: check-six-pulse 1100ms ease-in-out infinite;
-}
+.six-highlight::after { content:""; position:absolute; inset:7%; border:2px solid #000; border-radius:50%; pointer-events:none; z-index:3; animation:check-six-pulse 1100ms ease-in-out infinite; }
 @keyframes check-six-pulse {
-  0%,100% { outline-color:#777; outline-offset:2px; }
-  50% { outline-color:#000; outline-offset:4px; }
-}
-.six-highlight .stone-flip {
-  animation:
-    stone-flip 320ms ease-in-out 120ms both,
-    check-six-pulse 1100ms ease-in-out 440ms infinite;
+  0%,100% { opacity:.5; transform:scale(1); }
+  50% { opacity:1; transform:scale(1.04); }
 }
 .six-lines {
   position: absolute;
@@ -440,7 +435,7 @@ input {
   .six-highlight .stone-flip {
     animation: none !important;
   }
-  .six-highlight .stone { outline:2px solid #000; outline-offset:3px; }
+  .six-highlight::after { animation:none; opacity:1; }
   .defeat-six .stone,
   .defeat-sequence .defeat-six .stone,
   .defeat-sequence .defeat-six-line,

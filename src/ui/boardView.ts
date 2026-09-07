@@ -112,7 +112,7 @@ export function boardView(
   board.setAttribute("aria-label", t("board.label"));
   for (let i = 0; i < 100; i++) {
     const cell = document.createElement("button");
-    cell.className = "cell";
+    cell.className = `cell board-color-${(Math.floor(i / 10) + i % 10) % 2 ? "b" : "a"}`;
     board.append(cell);
   }
   updateBoard(board, state, enabled, move, presentation);
