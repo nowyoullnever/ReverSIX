@@ -2,6 +2,7 @@ import { getMoveOptions } from "../game/rules";
 import type { GameState } from "../game/types";
 import type { BoardChange } from "./transitions";
 import { t } from "../i18n/i18n";
+import { randomBoardColors } from "./boardColors";
 const revisions = new WeakMap<HTMLElement, number>();
 export interface BoardPresentation {
   change?: BoardChange;
@@ -117,6 +118,9 @@ export function boardView(
 ): HTMLElement {
   const board = document.createElement("div");
   board.className = "board";
+  const colors = randomBoardColors();
+  board.style.setProperty("--board-color-a", colors.a);
+  board.style.setProperty("--board-color-b", colors.b);
   board.setAttribute("aria-label", t("board.label"));
   for (let i = 0; i < 100; i++) {
     const cell = document.createElement("button");
