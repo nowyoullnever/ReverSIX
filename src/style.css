@@ -133,6 +133,7 @@ input {
 .board-slot { min-width: 0; }
 .quick-chat-slot { min-width: 0; }
 .quick-chat {
+  position: relative;
   display: grid;
   grid-template-rows: auto auto auto auto;
   border: 1px solid #000;
@@ -177,7 +178,7 @@ input {
   text-align: left;
 }
 .quick-chat-message-me .quick-chat-bubble { background: #000; color: #fff; }
-.quick-chat-picker { border-top: 1px solid #000; }
+.quick-chat-picker { position: relative; border-top: 1px solid #000; }
 .quick-chat-choose {
   width: 100%;
   min-height: 48px;
@@ -186,10 +187,17 @@ input {
   font-size: .8rem;
 }
 .quick-chat-menu {
-  max-height: min(360px, calc(100dvh - 180px));
+  position: absolute;
+  z-index: 12;
+  left: calc(100% + 12px);
+  bottom: 0;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(520px, calc(100dvh - 48px));
   overflow-y: auto;
-  border-top: 1px solid #000;
+  border: 1px solid #000;
   background: #fff;
+  box-shadow: 4px 4px 0 rgb(0 0 0 / .12);
 }
 .quick-chat-menu[hidden] { display: none; }
 .quick-chat-preset {
