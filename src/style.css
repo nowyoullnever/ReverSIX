@@ -370,7 +370,27 @@ input {
   max-height: calc(100dvh - 32px);
   overflow: auto;
   text-align: center;
+  position: relative;
 }
+.tutorial-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: #fff;
+  color: #000;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.tutorial .step-count { padding-inline: 44px; }
 .tutorial-opening { animation: tutorial-open 180ms ease-out both; }
 .tutorial-closing { animation: tutorial-close 180ms ease-in both; }
 .tutorial-step-enter { animation: tutorial-step 160ms ease-out both; }

@@ -1,55 +1,40 @@
-import { getLocale, t } from "../i18n/i18n";
+import { t } from "../i18n/i18n";
 interface Step {
-  title: string;
-  paragraphs: string[];
+  titleKey: string;
+  paragraphKeys: string[];
   rows: string[];
-  caption: string;
+  captionKey: string;
 }
 export const tutorialSteps: Step[] = [
   {
-    title: "1. FLIP",
-    paragraphs: [
-      "Place a stone so that one or more opponent stones are trapped between your stones. Those stones flip to your color.",
-    ],
+    titleKey: "tutorial.step1.title",
+    paragraphKeys: ["tutorial.step1.p1"],
     rows: ["BWW.", "BBBB"],
-    caption: "BEFORE → AFTER · Works in all eight directions.",
+    captionKey: "tutorial.step1.caption",
   },
   {
-    title: "2. TWO MOVES",
-    paragraphs: [
-      "Black places one stone on the first turn. After that, each player places two stones per turn.",
-      "Flip after each move. The first move can change where the second move is legal. If no legal move remains, that move is skipped.",
-    ],
+    titleKey: "tutorial.step2.title",
+    paragraphKeys: ["tutorial.step2.p1", "tutorial.step2.p2"],
     rows: ["BWW.", "BBBB"],
-    caption: "MOVE 1 → FLIP → MOVE 2 → FLIP",
+    captionKey: "tutorial.step2.caption",
   },
   {
-    title: "3. MAKE SIX",
-    paragraphs: [
-      "Connect exactly six of your stones in a horizontal, vertical, or diagonal line.",
-      "Five does nothing. Seven or more does not count.",
-    ],
+    titleKey: "tutorial.step3.title",
+    paragraphKeys: ["tutorial.step3.p1", "tutorial.step3.p2"],
     rows: ["BBBBBB", "BBBBBBB"],
-    caption: "EXACTLY 6 → CHECK · 7 OR MORE → NO CHECK",
+    captionKey: "tutorial.step3.caption",
   },
   {
-    title: "4. CHECK!",
-    paragraphs: [
-      "Completing a line of six does not win immediately. It puts your opponent in CHECK at the end of your turn.",
-      "Your opponent gets their next full turn to break every SIX. CHECK is not declared halfway through a two-move turn.",
-    ],
+    titleKey: "tutorial.step4.title",
+    paragraphKeys: ["tutorial.step4.p1", "tutorial.step4.p2"],
     rows: ["BBBBBB", "BBWBBB"],
-    caption: "BLACK CHECK → WHITE BREAKS THE LINE",
+    captionKey: "tutorial.step4.caption",
   },
   {
-    title: "5. BREAK THE SIX",
-    paragraphs: [
-      "If at least one opponent SIX still exists at the end of your turn, you lose. Break all of them.",
-      "Breaking the CHECK while creating your own SIX creates a COUNTER CHECK.",
-      "No legal move? PASS. Passing while in CHECK loses. Otherwise, two consecutive passes end the game by stone count.",
-    ],
+    titleKey: "tutorial.step5.title",
+    paragraphKeys: ["tutorial.step5.p1", "tutorial.step5.p2", "tutorial.step5.p3"],
     rows: ["BBWBBB", "WWWWWW"],
-    caption: "BLACK SIX BROKEN + WHITE SIX → COUNTER CHECK",
+    captionKey: "tutorial.step5.caption",
   },
 ];
 export function miniBoard(row: string): HTMLElement {
@@ -63,14 +48,14 @@ export function miniBoard(row: string): HTMLElement {
       .split("")
       .map((c) =>
         c === "."
-          ? "empty"
+          ? t("board.empty")
           : c === "W"
-            ? "white"
+            ? t("game.white")
             : c === "1"
-              ? "first new black stone"
+              ? t("board.first")
               : c === "2"
-                ? "second new black stone"
-                : "black",
+                ? t("board.second")
+                : t("game.black"),
       )
       .join(", "),
   );
@@ -91,6 +76,13 @@ export function openTutorial(onClose: () => void = () => {}) {
   const dialog = document.createElement("dialog");
   dialog.className = "tutorial";
   dialog.setAttribute("aria-labelledby", "tutorial-title");
+  const closeButton = document.createElement("button");
+  closeButton.className = "tutorial-close";
+  closeButton.textContent = "×";
+  closeButton.setAttribute("aria-label", t("tutorial.closeAria"));
+  const content = document.createElement("div");
+  content.className = "tutorial-step-enter";
+  dialog.append(closeButton, content);
   const previousFocus = document.activeElement as HTMLElement | null;
   let index = 0;
   let closing = false;
@@ -108,18 +100,16 @@ export function openTutorial(onClose: () => void = () => {}) {
       finishClose();
     else setTimeout(finishClose, 180);
   };
+  closeButton.onclick = close;
   function render() {
     const step = tutorialSteps[index];
-    dialog.replaceChildren();
-    const content = document.createElement("div");
-    content.className = "tutorial-step-enter";
-    const closeButton=document.createElement("button");closeButton.className="settings-close";closeButton.textContent="×";closeButton.setAttribute("aria-label",getLocale()==="ko"?"게임 방법 닫기":"Close how to play");closeButton.onclick=close;content.append(closeButton);
+    content.replaceChildren();
     const count = document.createElement("p");
     count.className = "step-count";
     count.textContent = t("tutorial.count", { page:index+1, total:tutorialSteps.length });
     const title = document.createElement("h2");
     title.id = "tutorial-title";
-    title.textContent = getLocale()==="ko" ? ["1. 뒤집기","2. 한 턴에 두 수","3. SIX 만들기","4. 체크!","5. SIX 방어하기"][index]! : step.title;
+    title.textContent = t(step.titleKey);
     title.tabIndex = -1;
     content.append(count, title);
     const illustration = document.createElement("div");
@@ -128,24 +118,26 @@ export function openTutorial(onClose: () => void = () => {}) {
     content.append(illustration);
     const caption = document.createElement("p");
     caption.className = "tutorial-caption";
-    caption.textContent = step.caption;
+    caption.textContent = t(step.captionKey);
     content.append(caption);
-    step.paragraphs.forEach((text) => {
+    step.paragraphKeys.forEach((key) => {
       const p = document.createElement("p");
-      p.textContent = text;
+      p.textContent = t(key);
       content.append(p);
     });
     const controls = document.createElement("div");
     controls.className = "tutorial-controls";
     const back = document.createElement("button");
-    back.textContent = getLocale()==="ko" ? "이전" : "BACK";
+    back.textContent = t("tutorial.back");
     back.disabled = index === 0;
     back.onclick = () => {
       index--;
       render();
     };
     const next = document.createElement("button");
-    next.textContent = index === tutorialSteps.length - 1 ? (getLocale()==="ko" ? "완료" : "PLAY") : (getLocale()==="ko" ? "다음" : "NEXT");
+    next.textContent = index === tutorialSteps.length - 1
+      ? t("tutorial.play")
+      : t("tutorial.next");
     next.onclick = () => {
       if (index === tutorialSteps.length - 1) close();
       else {
@@ -155,7 +147,6 @@ export function openTutorial(onClose: () => void = () => {}) {
     };
     controls.append(back, next);
     content.append(controls);
-    dialog.append(content);
     title.focus();
   }
   dialog.addEventListener("cancel", (event) => {

@@ -12,6 +12,7 @@ import { RoomPresenter, MOVE_ANIMATION_MS } from "../src/ui/presenter";
 import { boardView, updateBoard } from "../src/ui/boardView";
 import { openTutorial, tutorialSteps } from "../src/ui/tutorial";
 import { Toast } from "../src/ui/toast";
+import { setLocale } from "../src/i18n/i18n";
 const initial = (): Room => ({
   status: "playing",
   createdAt: 1,
@@ -153,8 +154,9 @@ it("toast messages are queued and disappear automatically", () => {
   vi.advanceTimersByTime(2180);
   expect(toast.element.hidden).toBe(true);
 });
-it("tutorial supports next/back, keyboard navigation, all six steps and close", () => {
+it("tutorial supports English navigation across all five translated steps", () => {
   vi.useFakeTimers();
+  setLocale("en");
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
   };
@@ -162,12 +164,17 @@ it("tutorial supports next/back, keyboard navigation, all six steps and close", 
     this.open = false;
   };
   const dialog = openTutorial();
+  expect(dialog.textContent).toContain("HOW TO PLAY · 1 / 5");
+  const close = dialog.querySelector<HTMLButtonElement>(".tutorial-close")!;
+  expect(close.parentElement).toBe(dialog);
+  expect(close.getAttribute("aria-label")).toBe("Close how to play");
   expect(dialog.textContent).toContain("1. FLIP");
   const button = (label: string) =>
     [...dialog.querySelectorAll("button")].find(
       (b) => b.textContent === label,
     )!;
   button("NEXT").click();
+  expect(dialog.querySelector(".tutorial-close")).toBe(close);
   expect(dialog.textContent).toContain("2. TWO MOVES");
   button("BACK").click();
   for (let i = 0; i < 4; i++)
@@ -179,6 +186,27 @@ it("tutorial supports next/back, keyboard navigation, all six steps and close", 
   button("PLAY").click();
   vi.advanceTimersByTime(180);
   expect(dialog.isConnected).toBe(false);
+});
+it("renders every tutorial step and controls in Korean", () => {
+  setLocale("ko");
+  const dialog = openTutorial();
+  expect(dialog.textContent).toContain("게임 방법 · 1 / 5");
+  expect(dialog.textContent).toContain("1. 뒤집기");
+  expect(dialog.textContent).toContain("돌을 놓아 상대 돌 하나 이상을 내 돌 사이에 끼우면");
+  expect(dialog.textContent).toContain("놓기 전 → 놓은 후");
+  expect(dialog.textContent).toContain("이전");
+  expect(dialog.textContent).toContain("다음");
+  expect(dialog.querySelector(".tutorial-close")?.getAttribute("aria-label")).toBe("게임 방법 닫기");
+  for (let page = 2; page <= 5; page++) {
+    [...dialog.querySelectorAll("button")].find((b) => b.textContent === "다음")?.click();
+    expect(dialog.textContent).toContain(`게임 방법 · ${page} / 5`);
+  }
+  expect(dialog.textContent).toContain("5. SIX 방어하기");
+  expect(dialog.textContent).toContain("둘 수 있는 곳이 없으면 패스합니다.");
+  expect(dialog.textContent).toContain("완료");
+  expect(dialog.textContent).not.toContain("CLOSE");
+  dialog.remove();
+  setLocale("en");
 });
 it("tutorial escape restores focus to its opener", () => {
   vi.useFakeTimers();
