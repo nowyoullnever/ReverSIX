@@ -39,8 +39,7 @@ let subscriptionGeneration = 0;
 let history: MoveHistory | undefined;
 const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
-  six: number[] = [],
-  highlightTimer: ReturnType<typeof setTimeout> | undefined;
+  six: number[] = [];
 let defeatSequenceRevision = -1;
 const toast = new Toast();
 const audio = new AudioManager();
@@ -87,16 +86,9 @@ const presenter = new RoomPresenter(
     )
       defeatSequenceRevision = next.game.revision;
     toast.show(events);
-    if (events.includes("CHECK!") || events.includes("COUNTER CHECK!")) {
-      clearTimeout(highlightTimer);
-      six = next.game.checkBy
-        ? getSixLines(next.game.board, next.game.checkBy).flat()
-        : [];
-      highlightTimer = setTimeout(() => {
-        six = [];
-        render();
-      }, 1400);
-    }
+    six = next.game.checkBy && !next.game.winner
+      ? [...new Set(getSixLines(next.game.board, next.game.checkBy).flat())]
+      : [];
     render(change);
   },
   () => render(),
@@ -191,7 +183,6 @@ function leave() {
   presenter.reset();
   toast.clear();
   presenceEvents.reset();
-  clearTimeout(highlightTimer);
   six = [];
   defeatSequenceRevision = -1;
   lastPlaced = -1;

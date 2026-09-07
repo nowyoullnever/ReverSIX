@@ -187,12 +187,16 @@ input {
 .six-highlight .stone {
   outline: 2px solid #777;
   outline-offset: 2px;
-  animation: six-pulse 600ms ease-in-out 2;
+  animation: check-six-pulse 1100ms ease-in-out infinite;
+}
+@keyframes check-six-pulse {
+  0%,100% { outline-color:#777; outline-offset:2px; }
+  50% { outline-color:#000; outline-offset:4px; }
 }
 .six-highlight .stone-flip {
   animation:
     stone-flip 320ms ease-in-out 120ms both,
-    six-pulse 600ms ease-in-out 440ms 2;
+    check-six-pulse 1100ms ease-in-out 440ms infinite;
 }
 .six-lines {
   position: absolute;
@@ -436,6 +440,7 @@ input {
   .six-highlight .stone-flip {
     animation: none !important;
   }
+  .six-highlight .stone { outline:2px solid #000; outline-offset:3px; }
   .defeat-six .stone,
   .defeat-sequence .defeat-six .stone,
   .defeat-sequence .defeat-six-line,
