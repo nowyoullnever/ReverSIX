@@ -25,11 +25,11 @@ export const tutorialSteps: Step[] = [
   {
     title: "3. MAKE SIX",
     paragraphs: [
-      "Connect six or more of your stones in a horizontal, vertical, or diagonal line.",
-      "Five does nothing. Seven or more also counts as SIX.",
+      "Connect exactly six of your stones in a horizontal, vertical, or diagonal line.",
+      "Five does nothing. Seven or more does not count.",
     ],
     rows: ["BBBBBB", "BBBBBBB"],
-    caption: "6 OR MORE",
+    caption: "EXACTLY 6 → CHECK · 7 OR MORE → NO CHECK",
   },
   {
     title: "4. CHECK!",
@@ -53,8 +53,8 @@ export const tutorialSteps: Step[] = [
   {
     title: "6. NO DOUBLE-SIX",
     paragraphs: [
-      "You cannot create a SIX that contains both stones placed during the same turn. The final board after flipping is what counts.",
-      "Two stones may still be placed on the same row, column, or diagonal. It is only forbidden if both new stones belong to the same SIX.",
+      "You cannot create an EXACT SIX that contains both stones placed during the same turn. The final board after flipping is what counts.",
+      "Two stones may still be placed on the same row, column, or diagonal. It is only forbidden if both new stones belong to the same exact SIX. A seven-stone run is allowed.",
       "The 🚫 icon marks a Reversi-legal square forbidden by this rule. Other illegal squares have no icon.",
     ],
     rows: [".BBBB.", "1BBBB2"],

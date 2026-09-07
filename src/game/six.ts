@@ -20,7 +20,8 @@ export function getSixLines(board: Board, player: Player): number[][] {
         r += dr;
         c += dc;
       }
-      if (line.length >= 6) lines.push(line);
+      // A line is one maximal run: never split an overline into six-cell windows.
+      if (line.length === 6) lines.push(line);
     }
   }
   return lines;

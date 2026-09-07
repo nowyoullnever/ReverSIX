@@ -136,14 +136,14 @@ describe("Double-Six", () => {
     expect(getMoveOptions(s).forbidden).toContain(42);
     expect(getMoveOptions(s).forbidden).not.toContain(99);
   });
-  it("blocks two stones in one maximal seven-stone run even outside one six-cell window", () => {
+  it("allows two stones in one maximal seven-stone run", () => {
     const b = emptyBoard();
     fill(b, [40, 41, 42, 43, 44, 45]);
     b[56] = "white";
     b[66] = "black";
     expect(
       getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 40 }))
-        .forbidden,
+        .legal,
     ).toContain(46);
   });
   it("allows same-line placements when the connection stays shorter than six", () => {
@@ -167,16 +167,41 @@ describe("Double-Six", () => {
     ).toContain(45);
   });
 });
-describe("SIX and CHECK", () => {
-  it.each([5, 6, 7, 8, 9, 10])("recognizes a maximal run of %i", (length) => {
+describe("EXACT SIX and CHECK", () => {
+  it.each([
+    [40, 1, "horizontal"],
+    [4, 10, "vertical"],
+    [11, 11, "down-right diagonal"],
+    [81, -9, "up-right diagonal"],
+  ])("recognizes an exact six on the %s", (start, step) => {
     const b = emptyBoard();
     fill(
       b,
-      Array.from({ length }, (_, i) => 40 + i),
+      Array.from({ length: 6 }, (_, i) => start + i * step),
     );
-    expect(getSixLines(b, "black").map((l) => l.length)).toEqual(
-      length >= 6 ? [length] : [],
+    expect(getSixLines(b, "black")).toEqual([
+      Array.from({ length: 6 }, (_, i) => start + i * step),
+    ]);
+  });
+  it.each([
+    [40, 1, 7, "horizontal seven"],
+    [40, 1, 8, "horizontal eight"],
+    [40, 1, 10, "horizontal ten"],
+    [4, 10, 7, "vertical seven"],
+    [11, 11, 7, "down-right diagonal seven"],
+    [81, -9, 7, "up-right diagonal seven"],
+  ])("does not treat %s as a SIX", (start, step, length) => {
+    const b = emptyBoard();
+    fill(
+      b,
+      Array.from({ length }, (_, i) => start + i * step),
     );
+    expect(getSixLines(b, "black")).toEqual([]);
+  });
+  it("does not split a seven-stone run into six-cell windows", () => {
+    const b = emptyBoard();
+    fill(b, [40, 41, 42, 43, 44, 45, 46]);
+    expect(getSixLines(b, "black")).toHaveLength(0);
   });
   it("recognizes a SIX created by flipping", () => {
     const b = emptyBoard();
@@ -185,6 +210,18 @@ describe("SIX and CHECK", () => {
     expect(getSixLines(applyMove(b, "black", 45), "black")).toEqual([
       [40, 41, 42, 43, 44, 45],
     ]);
+  });
+  it("does not CHECK when a flip creates an overline", () => {
+    const b = emptyBoard();
+    b[40] = b[41] = "black";
+    fill(b, [42, 43, 44, 45], "white");
+    expect(getSixLines(applyMove(b, "black", 46), "black")).toEqual([]);
+    const end = playMove(
+      state(b, { moveNumberInTurn: 2, firstPlacedStone: 99 }),
+      "black",
+      46,
+    );
+    expect(end.checkBy).toBe("");
   });
   it("waits for the end of the turn before CHECK", () => {
     const b = emptyBoard();
@@ -213,6 +250,21 @@ describe("SIX and CHECK", () => {
     const end = playMove(first, "white", 2);
     expect(end.winner).not.toBe("black");
     expect(end.checkBy).not.toBe("black");
+  });
+  it("treats a defended black overline as no remaining CHECK", () => {
+    const b = emptyBoard();
+    fill(b, [40, 41, 42, 43, 44, 45, 46]);
+    fill(b, [0, 1, 2, 3, 4, 5, 6, 7], "white");
+    const result = settlePasses(
+      state(b, { currentPlayer: "white", checkBy: "black" }),
+    );
+    expect(result.events).not.toContain("CHECK DEFENSE FAILED");
+  });
+  it("keeps CHECK when an overline coexists with another exact six", () => {
+    const b = emptyBoard();
+    fill(b, [0, 1, 2, 3, 4, 5, 6]);
+    fill(b, [40, 41, 42, 43, 44, 45]);
+    expect(getSixLines(b, "black")).toEqual([[40, 41, 42, 43, 44, 45]]);
   });
   it("fails when an opposing SIX remains at the end", () => {
     const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
@@ -254,14 +306,13 @@ describe("automatic pass and skips", () => {
     expect(end.winner).toBe("black");
   });
   it("skips when every second Reversi move is forbidden", () => {
-    const b: Board = Array(100).fill("black");
-    b[40] = "";
-    b[45] = "";
-    b[50] = "white";
-    b[55] = "white";
-    const end = playMove(state(b), "black", 40);
+    const b = emptyBoard();
+    fill(b, [21, 22, 23, 24]);
+    b[30] = b[35] = "white";
+    b[40] = b[45] = b[46] = "black";
+    const end = playMove(state(b), "black", 20);
     expect(end.events).toContain("BLACK SECOND MOVE SKIPPED");
-    expect(end.board[45]).toBe("");
+    expect(end.board[25]).toBe("");
   });
   it("judges CHECK after a one-move turn with no second move", () => {
     const b = emptyBoard();

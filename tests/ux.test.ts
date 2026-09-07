@@ -175,7 +175,7 @@ it("tutorial supports next/back, keyboard navigation, all six steps and close", 
   expect(dialog.textContent).toContain("6. NO DOUBLE-SIX");
   expect(dialog.textContent).toContain("🚫");
   expect(dialog.textContent).toContain(
-    "both new stones belong to the same SIX",
+    "both new stones belong to the same exact SIX",
   );
   expect(tutorialSteps).toHaveLength(6);
   button("PLAY").click();
