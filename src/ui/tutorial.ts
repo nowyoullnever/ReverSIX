@@ -1,3 +1,4 @@
+import { getLocale, t } from "../i18n/i18n";
 interface Step {
   title: string;
   paragraphs: string[];
@@ -112,12 +113,13 @@ export function openTutorial(onClose: () => void = () => {}) {
     dialog.replaceChildren();
     const content = document.createElement("div");
     content.className = "tutorial-step-enter";
+    const closeButton=document.createElement("button");closeButton.className="settings-close";closeButton.textContent="×";closeButton.setAttribute("aria-label",getLocale()==="ko"?"게임 방법 닫기":"Close how to play");closeButton.onclick=close;content.append(closeButton);
     const count = document.createElement("p");
     count.className = "step-count";
-    count.textContent = `HOW TO PLAY · ${index + 1} / ${tutorialSteps.length}`;
+    count.textContent = t("tutorial.count", { page:index+1, total:tutorialSteps.length });
     const title = document.createElement("h2");
     title.id = "tutorial-title";
-    title.textContent = step.title;
+    title.textContent = getLocale()==="ko" ? ["1. 뒤집기","2. 한 턴에 두 수","3. SIX 만들기","4. 체크!","5. SIX 방어하기"][index]! : step.title;
     title.tabIndex = -1;
     content.append(count, title);
     const illustration = document.createElement("div");
@@ -136,14 +138,14 @@ export function openTutorial(onClose: () => void = () => {}) {
     const controls = document.createElement("div");
     controls.className = "tutorial-controls";
     const back = document.createElement("button");
-    back.textContent = "BACK";
+    back.textContent = getLocale()==="ko" ? "이전" : "BACK";
     back.disabled = index === 0;
     back.onclick = () => {
       index--;
       render();
     };
     const next = document.createElement("button");
-    next.textContent = index === tutorialSteps.length - 1 ? "PLAY" : "NEXT";
+    next.textContent = index === tutorialSteps.length - 1 ? (getLocale()==="ko" ? "완료" : "PLAY") : (getLocale()==="ko" ? "다음" : "NEXT");
     next.onclick = () => {
       if (index === tutorialSteps.length - 1) close();
       else {
@@ -151,11 +153,7 @@ export function openTutorial(onClose: () => void = () => {}) {
         render();
       }
     };
-    const exit = document.createElement("button");
-    exit.className = "text-button";
-    exit.textContent = "CLOSE";
-    exit.onclick = close;
-    controls.append(back, next, exit);
+    controls.append(back, next);
     content.append(controls);
     dialog.append(content);
     title.focus();
