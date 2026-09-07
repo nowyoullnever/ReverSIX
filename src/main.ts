@@ -137,11 +137,6 @@ function render(change?: BoardChange) {
               ? { ...pending, before, revision: result.game.revision }
               : undefined;
           }),
-        soundEnabled: audio.isEnabled(),
-        toggleSound: () => {
-          audio.setEnabled(!audio.isEnabled());
-          render();
-        },
       },
     );
   } else

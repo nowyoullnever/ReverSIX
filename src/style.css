@@ -12,6 +12,9 @@
   font-synthesis: none;
   font-size: 16px;
 }
+html[lang="ko"] { font-size: 12px; }
+html[lang="ko"] h1 { font-size: clamp(2rem, 7vw, 3.2rem); }
+html[lang="ko"] p { line-height:1.52; }
 * {
   box-sizing: border-box;
 }
