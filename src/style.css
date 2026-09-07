@@ -26,6 +26,9 @@ main {
   margin: 30px auto;
   text-align: center;
 }
+main[data-room] {
+  width: min(calc(100% - 24px), 1000px);
+}
 h1 {
   font-size: clamp(2rem, 7vw, 3.2rem);
   font-weight: 400;
@@ -120,6 +123,87 @@ input {
   margin: auto;
   position: relative;
 }
+.game-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 680px) 280px;
+  align-items: start;
+  justify-content: center;
+  gap: 28px;
+}
+.board-slot { min-width: 0; }
+.quick-chat-slot { min-width: 0; }
+.quick-chat {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(180px, 1fr) auto auto;
+  height: min(520px, calc(100dvh - 290px));
+  min-height: 360px;
+  border: 1px solid #000;
+  background: #fff;
+  text-align: left;
+}
+.quick-chat-title {
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid #000;
+  font-size: .875rem;
+  letter-spacing: .08em;
+}
+.quick-chat-history {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 14px;
+  overscroll-behavior: contain;
+}
+.quick-chat-message {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px;
+  margin: 8px 0;
+  font-size: .8rem;
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.quick-chat-message strong { font-weight: 400; color: #666; }
+.quick-chat-picker { position: relative; border-top: 1px solid #000; }
+.quick-chat-choose {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  text-align: left;
+  font-size: .8rem;
+}
+.quick-chat-menu {
+  position: absolute;
+  z-index: 8;
+  left: -1px;
+  right: -1px;
+  bottom: calc(100% + 1px);
+  max-height: min(420px, calc(100dvh - 180px));
+  overflow-y: auto;
+  border: 1px solid #000;
+  background: #fff;
+}
+.quick-chat-menu[hidden] { display: none; }
+.quick-chat-preset {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  font-size: .8rem;
+}
+.quick-chat-preset:last-child { border-bottom: 0; }
+.quick-chat-choose:disabled,
+.quick-chat-preset:disabled { opacity: .4; }
+.quick-chat-error { margin: 0; padding: 8px 12px; font-size: .72rem; }
+.quick-chat-error[hidden] { display: none; }
 .cell {
   padding: 0;
   min-width: 0;
@@ -550,6 +634,11 @@ html[lang="ko"] .game-controls button { font-size: clamp(.85rem, 3.4vw, 1rem); }
   .settings { padding:24px 20px; }
   .game-controls { gap:4px; }
   .game-controls button { padding-inline:8px; }
+}
+@media (max-width: 899px) {
+  main[data-room] { width: min(100% - 24px, 680px); }
+  .game-layout { display: block; }
+  .quick-chat-slot { display: none; }
 }
 @media (max-width: 340px) {
   .join-row { grid-template-columns: 1fr; }

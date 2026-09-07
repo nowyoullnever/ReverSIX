@@ -4,9 +4,11 @@ import type { Room } from "../online/rooms";
 import { boardView, updateBoard, type BoardPresentation } from "./boardView";
 import { replayMotion, setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
+import { quickChatView, type QuickChatPresentation } from "./quickChatView";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
+  quickChat?: QuickChatPresentation;
 }
 const lastTurn = new WeakMap<HTMLElement, Player>();
 const copyTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
@@ -33,7 +35,7 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout"><div class="board-slot"></div><div class="quick-chat-slot" hidden></div></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
@@ -93,6 +95,16 @@ export function gameView(
       s.currentPlayer === player,
     move,
     finalPresentation,
+  );
+  quickChatView(
+    root.querySelector<HTMLElement>(".quick-chat-slot")!,
+    room.players,
+    presentation.quickChat ?? {
+      enabled: false,
+      messages: [],
+      disabled: true,
+      send: () => {},
+    },
   );
   root.querySelector(".you")!.textContent =
     t("game.you", { color:t(`game.${player}`), black:s.board.filter((c) => c === "black").length, white:s.board.filter((c) => c === "white").length });

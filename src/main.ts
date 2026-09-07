@@ -25,6 +25,9 @@ import {
 import { canUndo, recordMove, type MoveHistory } from "./game/history";
 import { AudioManager } from "./audio/audio";
 import { getLocale, localizeError, setLocale } from "./i18n/i18n";
+import { sendQuickChat, watchQuickChat, type QuickChatMessage } from "./online/quickChat";
+import type { ChatPresetId } from "./online/chatPresets";
+import { isQuickChatCoolingDown, QUICK_CHAT_COOLDOWN_MS } from "./online/chatCooldown";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -37,6 +40,14 @@ let presence: string[] = [],
   error = "";
 let subscriptionGeneration = 0;
 let history: MoveHistory | undefined;
+let quickChatMessages: QuickChatMessage[] = [];
+let quickChatError = "";
+let quickChatStop: (() => void) | undefined;
+let quickChatRoom = "";
+let quickChatGeneration = 0;
+let quickChatCooldownUntil = 0;
+let quickChatTimer: ReturnType<typeof setTimeout> | undefined;
+const desktopChat = window.matchMedia("(min-width: 900px)");
 const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
   six: number[] = [];
@@ -129,6 +140,13 @@ function render(change?: BoardChange) {
               ? { ...pending, before, revision: result.game.revision }
               : undefined;
           }),
+        quickChat: {
+          enabled: desktopChat.matches,
+          messages: quickChatMessages,
+          disabled: isQuickChatCoolingDown(Date.now(), quickChatCooldownUntil),
+          error: quickChatError,
+          send: (presetId) => void sendPreset(presetId),
+        },
       },
     );
   } else
@@ -187,6 +205,7 @@ function leave() {
   defeatSequenceRevision = -1;
   lastPlaced = -1;
   subscriptionGeneration++;
+  stopQuickChat();
   stop?.();
   stop = undefined;
   room = null;
@@ -212,6 +231,7 @@ async function enter(value: string) {
       } else {
         uid = id;
         presenter.receive(next);
+        reconcileQuickChat();
       }
       render();
     },
@@ -246,6 +266,78 @@ async function enter(value: string) {
   if (generation === subscriptionGeneration) stop = unsubscribe;
   else unsubscribe();
 }
+function stopQuickChat() {
+  quickChatGeneration++;
+  quickChatStop?.();
+  quickChatStop = undefined;
+  quickChatRoom = "";
+  quickChatMessages = [];
+  quickChatError = "";
+  clearTimeout(quickChatTimer);
+  quickChatTimer = undefined;
+  quickChatCooldownUntil = 0;
+}
+function reconcileQuickChat() {
+  if (!room || !code || !desktopChat.matches) {
+    if (quickChatStop || quickChatRoom) stopQuickChat();
+    return;
+  }
+  if (quickChatRoom === code) return;
+  const generation = ++quickChatGeneration;
+  quickChatStop?.();
+  quickChatStop = undefined;
+  quickChatRoom = code;
+  quickChatMessages = [];
+  quickChatError = "";
+  void watchQuickChat(
+    code,
+    (messages) => {
+      if (generation !== quickChatGeneration) return;
+      quickChatMessages = messages;
+      render();
+    },
+    (nextError) => {
+      if (generation !== quickChatGeneration) return;
+      quickChatError = localizeError(nextError.message);
+      render();
+    },
+  ).then((unsubscribe) => {
+    if (generation === quickChatGeneration) quickChatStop = unsubscribe;
+    else unsubscribe();
+  }).catch((nextError: Error) => {
+    if (generation === quickChatGeneration) {
+      quickChatError = localizeError(nextError.message);
+      render();
+    }
+  });
+}
+async function sendPreset(presetId: ChatPresetId) {
+  if (
+    !room ||
+    !code ||
+    !desktopChat.matches ||
+    isQuickChatCoolingDown(Date.now(), quickChatCooldownUntil)
+  )
+    return;
+  quickChatCooldownUntil = Date.now() + QUICK_CHAT_COOLDOWN_MS;
+  quickChatError = "";
+  clearTimeout(quickChatTimer);
+  quickChatTimer = setTimeout(() => {
+    quickChatCooldownUntil = 0;
+    render();
+  }, QUICK_CHAT_COOLDOWN_MS);
+  render();
+  try {
+    await sendQuickChat(code, presetId);
+  } catch (nextError) {
+    quickChatError = localizeError((nextError as Error).message);
+    render();
+  }
+}
+desktopChat.addEventListener("change", () => {
+  reconcileQuickChat();
+  render();
+});
 render();
 const saved = sessionStorage.getItem("reversix-room");
 if (firebaseConfigured && saved && CODE_PATTERN.test(saved))

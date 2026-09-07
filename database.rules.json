@@ -79,6 +79,27 @@
           }
         }
       }
+    },
+    "quickChat": {
+      "$code": {
+        ".read": "auth != null && (root.child('rooms').child($code).child('players/black').val() === auth.uid || root.child('rooms').child($code).child('players/white').val() === auth.uid)",
+        "$messageId": {
+          ".write": "auth != null && !data.exists() && newData.exists() && (root.child('rooms').child($code).child('players/black').val() === auth.uid || root.child('rooms').child($code).child('players/white').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['uid','presetId','createdAt'])",
+          "uid": {
+            ".validate": "newData.isString() && newData.val() === auth.uid"
+          },
+          "presetId": {
+            ".validate": "newData.isString() && (newData.val() === 'wellPlayed' || newData.val() === 'goodMove' || newData.val() === 'bruh' || newData.val() === 'illTakeThat' || newData.val() === 'damn' || newData.val() === 'misclicked' || newData.val() === 'makeMove' || newData.val() === 'wait' || newData.val() === 'thinking' || newData.val() === 'goodLuck' || newData.val() === 'thanks' || newData.val() === 'wow' || newData.val() === 'fellAsleep' || newData.val() === 'stfu')"
+          },
+          "createdAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

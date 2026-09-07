@@ -165,3 +165,60 @@ it("UNDO rejects stale revision and cannot write after the opponent turn starts"
   expect(() => undoRoomState(second, "b", history)).toThrow("STATE CHANGED");
   await assertFails(set(b, { ...first, game: { ...first.game, revision: 4 } }));
 });
+it("quick chat accepts preset IDs from players and shares them in push order", async () => {
+  await set(ref(db("a"), "rooms/ABC234"), waiting());
+  await set(ref(db("b"), "rooms/ABC234"), joinRoomState(waiting(), "b"));
+  await set(ref(db("a"), "quickChat/ABC234/message1"), {
+    uid: "a",
+    presetId: "goodMove",
+    createdAt: 10,
+  });
+  await set(ref(db("b"), "quickChat/ABC234/message2"), {
+    uid: "b",
+    presetId: "bruh",
+    createdAt: 11,
+  });
+  expect((await get(ref(db("a"), "quickChat/ABC234"))).val()).toEqual({
+    message1: { uid: "a", presetId: "goodMove", createdAt: 10 },
+    message2: { uid: "b", presetId: "bruh", createdAt: 11 },
+  });
+});
+it("quick chat rejects arbitrary presets, extra text, forged users and edits", async () => {
+  await set(ref(db("a"), "rooms/ABC234"), waiting());
+  const base = { uid: "a", presetId: "goodMove", createdAt: 10 };
+  await assertFails(set(ref(db("a"), "quickChat/ABC234/badPreset"), {
+    ...base,
+    presetId: "hello",
+  }));
+  await assertFails(set(ref(db("a"), "quickChat/ABC234/extraText"), {
+    ...base,
+    text: "<script>alert(1)</script>",
+  }));
+  await assertFails(set(ref(db("a"), "quickChat/ABC234/forged"), {
+    ...base,
+    uid: "b",
+  }));
+  const existing = ref(db("a"), "quickChat/ABC234/existing");
+  await set(existing, base);
+  await assertFails(set(existing, { ...base, presetId: "thanks" }));
+  await assertFails(set(existing, null));
+});
+it("quick chat rejects non-players and isolates rooms", async () => {
+  await set(ref(db("a"), "rooms/ABC234"), waiting());
+  await set(ref(db("c"), "rooms/GHJ234"), {
+    ...waiting(),
+    players: { black: "c" },
+  });
+  await set(ref(db("a"), "quickChat/ABC234/message1"), {
+    uid: "a",
+    presetId: "thanks",
+    createdAt: 10,
+  });
+  await assertFails(get(ref(db("c"), "quickChat/ABC234")));
+  await assertFails(set(ref(db("c"), "quickChat/ABC234/message2"), {
+    uid: "c",
+    presetId: "wow",
+    createdAt: 11,
+  }));
+  await assertFails(get(ref(db("a"), "quickChat/GHJ234")));
+});
