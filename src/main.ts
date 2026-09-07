@@ -19,9 +19,11 @@ import {
   PresenceEvents,
   roomEvents,
   compareBoards,
+  moveTransition,
   type BoardChange,
 } from "./ui/transitions";
 import { canUndo, recordMove, type MoveHistory } from "./game/history";
+import { AudioManager } from "./audio/audio";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -40,6 +42,8 @@ let lastPlaced = -1,
   highlightTimer: ReturnType<typeof setTimeout> | undefined;
 let defeatSequenceRevision = -1;
 const toast = new Toast();
+const audio = new AudioManager();
+document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
   (previous, next, change) => {
@@ -72,6 +76,7 @@ const presenter = new RoomPresenter(
       JSON.stringify({ revision: next.game.revision, index: lastPlaced }),
     );
     const events = roomEvents(previous, next);
+    audio.playChange(moveTransition(previous, next));
     if (
       previous &&
       !previous.game.winner &&
@@ -108,11 +113,11 @@ function render(change?: BoardChange) {
       ),
       busy || presenter.locked,
       (i) =>
-        void action(async () => {
+        void (audio.unlock(), action(async () => {
           const before = room!.game;
           const result = await submitMove(code, before.revision, i);
           history = recordMove(history, before, result.game);
-        }),
+        })),
       leave,
       {
         change,
@@ -130,6 +135,11 @@ function render(change?: BoardChange) {
               ? { ...pending, before, revision: result.game.revision }
               : undefined;
           }),
+        soundEnabled: audio.isEnabled(),
+        toggleSound: () => {
+          audio.setEnabled(!audio.isEnabled());
+          render();
+        },
       },
     );
   } else
@@ -137,12 +147,12 @@ function render(change?: BoardChange) {
       root,
       firebaseConfigured,
       busy,
-      () => void action(async () => enter(await createRoom()), "creating"),
+      () => void (audio.unlock(), action(async () => enter(await createRoom()), "creating")),
       (value) =>
-        void action(async () => {
+        void (audio.unlock(), action(async () => {
           await joinRoom(value);
           await enter(value);
-        }, "joining"),
+        }, "joining")),
       lobbyActivity,
     );
   const existing = root.querySelector<HTMLElement>(".game-error");

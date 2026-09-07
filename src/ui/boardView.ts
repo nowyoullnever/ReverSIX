@@ -1,6 +1,7 @@
 import { getMoveOptions } from "../game/rules";
 import type { GameState } from "../game/types";
 import type { BoardChange } from "./transitions";
+import { FLIP_STAGGER_MAX_MS, FLIP_STAGGER_MS } from "../audio/audio";
 const revisions = new WeakMap<HTMLElement, number>();
 export interface BoardPresentation {
   change?: BoardChange;
@@ -71,7 +72,8 @@ export function updateBoard(
         cell.append(stone);
         if (presentation.change?.placed.includes(i))
           stone.classList.add("stone-enter");
-        if (presentation.change?.flipped.includes(i)) {
+        const flipIndex = presentation.change?.flipped.indexOf(i) ?? -1;
+        if (flipIndex >= 0) {
           stone.style.setProperty(
             "--old-color",
             color === "black" ? "#fff" : "#000",
@@ -81,6 +83,10 @@ export function updateBoard(
             color === "black" ? "#000" : "#fff",
           );
           stone.classList.add("stone-flip");
+          stone.style.setProperty(
+            "--flip-delay",
+            `${Math.min(flipIndex * FLIP_STAGGER_MS, FLIP_STAGGER_MAX_MS)}ms`,
+          );
         }
       } else if (forbidden.includes(i)) {
         cell.textContent = "🚫";

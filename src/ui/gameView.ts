@@ -6,6 +6,8 @@ import { replayMotion, setStatusText } from "./motion";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
+  soundEnabled?: boolean;
+  toggleSound?: () => void;
 }
 const lastTurn = new WeakMap<HTMLElement, Player>();
 const copyTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
@@ -32,7 +34,7 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button><button class="text-button sound">SOUND ON</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
@@ -112,6 +114,10 @@ export function gameView(
   undo.onclick = () => {
     if (!undo.disabled) presentation.undo?.();
   };
+  const sound = root.querySelector<HTMLButtonElement>(".sound")!;
+  sound.textContent = presentation.soundEnabled === false ? "SOUND OFF" : "SOUND ON";
+  sound.setAttribute("aria-pressed", `${presentation.soundEnabled !== false}`);
+  sound.onclick = () => presentation.toggleSound?.();
 }
 
 function showCopyFeedback(copy: HTMLButtonElement, label: string) {

@@ -110,6 +110,18 @@ it("shows CHECK and disconnect states", () => {
   expect(root.textContent).toContain("YOU ARE IN CHECK");
   expect(root.textContent).toContain("OPPONENT DISCONNECTED");
 });
+it("renders the persisted sound control beside UNDO", () => {
+  const root = document.createElement("main");
+  const toggle = vi.fn();
+  gameView(root, {
+    status: "playing", createdAt: 1, players: { black: "a", white: "b" }, game: createGame(),
+  }, "ABC234", "black", true, true, false, vi.fn(), vi.fn(), { soundEnabled: false, toggleSound: toggle });
+  const sound = root.querySelector<HTMLButtonElement>(".sound")!;
+  expect(sound.textContent).toBe("SOUND OFF");
+  expect(sound.getAttribute("aria-pressed")).toBe("false");
+  sound.click();
+  expect(toggle).toHaveBeenCalledOnce();
+});
 it("uses accessible fixed-width animated dots for waiting and reconnecting states", () => {
   const root = document.createElement("main");
   const waiting = { status: "waiting" as const, createdAt: 1, players: { black: "a" }, game: createGame() };
