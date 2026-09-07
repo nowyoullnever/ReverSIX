@@ -145,7 +145,7 @@ export function openTutorial(onClose: () => void = () => {}) {
     const next = document.createElement("button");
     next.textContent = index === tutorialSteps.length - 1 ? "PLAY" : "NEXT";
     next.onclick = () => {
-      if (index === 5) close();
+      if (index === tutorialSteps.length - 1) close();
       else {
         index++;
         render();
