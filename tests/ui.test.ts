@@ -6,14 +6,16 @@ import { lobby } from "../src/ui/lobby";
 import { createGame } from "../src/game/gameState";
 import { emptyBoard } from "../src/game/board";
 import type { Room } from "../src/online/rooms";
+const cells = (board: HTMLElement) =>
+  board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
 it("renders 100 cells and only legal moves can be clicked", () => {
   const move = vi.fn(),
     board = boardView(createGame(), true, move);
-  expect(board.children).toHaveLength(100);
+  expect(cells(board)).toHaveLength(100);
   expect(board.querySelectorAll("button:not(:disabled)")).toHaveLength(4);
-  (board.children[34] as HTMLButtonElement).click();
+  cells(board)[34].click();
   expect(move).toHaveBeenCalledWith(34);
-  (board.children[0] as HTMLButtonElement).click();
+  cells(board)[0].click();
   expect(move).toHaveBeenCalledTimes(1);
 });
 it("shows 🚫 only on Reversi-legal Double-Six forbidden cells", () => {
@@ -26,10 +28,10 @@ it("shows 🚫 only on Reversi-legal Double-Six forbidden cells", () => {
   s.board[43] = "white";
   const move = vi.fn(),
     board = boardView(s, true, move);
-  expect(board.children[42].textContent).toBe("🚫");
-  expect((board.children[42] as HTMLButtonElement).disabled).toBe(true);
-  expect(board.children[99].textContent).toBe("");
-  (board.children[42] as HTMLButtonElement).click();
+  expect(cells(board)[42].textContent).toBe("🚫");
+  expect(cells(board)[42].disabled).toBe(true);
+  expect(cells(board)[99].textContent).toBe("");
+  cells(board)[42].click();
   expect(move).not.toHaveBeenCalled();
 });
 it("disables board on opponent turn, waiting, disconnect and pending writes", () => {
@@ -107,6 +109,130 @@ it("shows CHECK and disconnect states", () => {
   );
   expect(root.textContent).toContain("YOU ARE IN CHECK");
   expect(root.textContent).toContain("OPPONENT DISCONNECTED");
+});
+function failedRoom(stones: number[]): Room {
+  const game = createGame();
+  game.board = emptyBoard();
+  stones.forEach((index) => (game.board[index] = "black"));
+  game.winner = "black";
+  game.events = ["CHECK DEFENSE FAILED"];
+  return {
+    status: "finished",
+    createdAt: 1,
+    players: { black: "a", white: "b" },
+    game,
+  };
+}
+it.each([
+  [[40, 41, 42, 43, 44, 45], "40", "45"],
+  [[4, 14, 24, 34, 44, 54], "4", "54"],
+  [[11, 22, 33, 44, 55, 66], "11", "66"],
+  [[81, 72, 63, 54, 45, 36], "81", "36"],
+])(
+  "draws a persistent exact-SIX result line from %s to %s",
+  (stones, start, end) => {
+    const root = document.createElement("main");
+    gameView(
+      root,
+      failedRoom(stones),
+      "ABC234",
+      "white",
+      true,
+      true,
+      false,
+      vi.fn(),
+      vi.fn(),
+    );
+    const line = root.querySelector<SVGLineElement>(".defeat-six-line")!;
+    expect(line.getAttribute("data-start")).toBe(start);
+    expect(line.getAttribute("data-end")).toBe(end);
+    expect(root.querySelectorAll(".defeat-six")).toHaveLength(6);
+    expect(root.textContent).toContain("YOU LOSE");
+    expect(root.textContent).toContain("SIX REMAINED");
+    expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);
+  },
+);
+it("draws every remaining exact SIX for both players at the same coordinates", () => {
+  const room = failedRoom([0, 1, 2, 3, 4, 5, 20, 30, 40, 50, 60, 70]);
+  const black = document.createElement("main"),
+    white = document.createElement("main");
+  gameView(black, room, "ABC234", "black", true, true, false, vi.fn(), vi.fn());
+  gameView(white, room, "ABC234", "white", true, true, false, vi.fn(), vi.fn());
+  const segments = (root: HTMLElement) =>
+    [...root.querySelectorAll(".defeat-six-line")].map((line) => [
+      line.getAttribute("data-start"),
+      line.getAttribute("data-end"),
+    ]);
+  expect(segments(black)).toEqual([
+    ["0", "5"],
+    ["20", "70"],
+  ]);
+  expect(segments(white)).toEqual(segments(black));
+  expect(black.textContent).toContain("SIX SURVIVED");
+  expect(white.textContent).toContain("SIX REMAINED");
+});
+it("excludes seven-stone overlines and does not show permanent lines during CHECK", () => {
+  const seven = document.createElement("main");
+  gameView(
+    seven,
+    failedRoom([0, 1, 2, 3, 4, 5, 6]),
+    "ABC234",
+    "white",
+    true,
+    true,
+    false,
+    vi.fn(),
+    vi.fn(),
+  );
+  expect(seven.querySelectorAll(".defeat-six-line")).toHaveLength(0);
+  const mixed = document.createElement("main");
+  gameView(
+    mixed,
+    failedRoom([0, 1, 2, 3, 4, 5, 6, 40, 41, 42, 43, 44, 45]),
+    "ABC234",
+    "white",
+    true,
+    true,
+    false,
+    vi.fn(),
+    vi.fn(),
+  );
+  expect(mixed.querySelectorAll(".defeat-six-line")).toHaveLength(1);
+  const checking = failedRoom([40, 41, 42, 43, 44, 45]);
+  checking.status = "playing";
+  checking.game.winner = "";
+  checking.game.checkBy = "black";
+  checking.game.events = [];
+  const root = document.createElement("main");
+  gameView(
+    root,
+    checking,
+    "ABC234",
+    "white",
+    true,
+    true,
+    false,
+    vi.fn(),
+    vi.fn(),
+  );
+  expect(root.querySelectorAll(".defeat-six-line")).toHaveLength(0);
+});
+it("uses a responsive SVG viewBox for result lines", () => {
+  const root = document.createElement("main");
+  gameView(
+    root,
+    failedRoom([40, 41, 42, 43, 44, 45]),
+    "ABC234",
+    "white",
+    true,
+    true,
+    false,
+    vi.fn(),
+    vi.fn(),
+  );
+  const overlay = root.querySelector<SVGSVGElement>(".six-lines")!;
+  expect(overlay.getAttribute("viewBox")).toBe("0 0 100 100");
+  expect(overlay.getAttribute("preserveAspectRatio")).toBe("none");
 });
 it("without Firebase, lobby explains setup and disables online controls", () => {
   const root = document.createElement("main");

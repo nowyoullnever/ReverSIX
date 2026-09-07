@@ -80,7 +80,7 @@ public/fonts/  사용자 ZIP에서 가져온 MaruBuri Regular OTF와 라이선�
 
 착수는 새 돌을 약 120ms에 표시한 뒤, 뒤집힌 돌을 약 320ms 동안 Y축으로 회전시켜 보여줍니다. 이 시간에는 입력을 잠그며, Firebase로 수신한 상대 착수도 이전/다음 보드를 비교해 같은 방식으로 표시합니다. 새로고침·재접속·UNDO로 복구한 상태는 과거 애니메이션을 재생하지 않습니다. OS의 `prefers-reduced-motion` 설정에서는 즉시 반영합니다.
 
-마지막 착수에는 작은 점을 표시합니다. CHECK/CHECK 방어/Counter Check/PASS, 입장·단절·재연결은 상단의 짧은 toast로 알리고, CHECK가 발생하면 해당 SIX 연결도 잠시 강조합니다.
+마지막 착수에는 작은 점을 표시합니다. CHECK/CHECK 방어/Counter Check/PASS, 입장·단절·재연결은 상단의 짧은 toast로 알리고, CHECK가 발생하면 해당 EXACT SIX 연결도 잠시 강조합니다. CHECK 방어 실패로 끝나면 최종 board에서 남은 모든 EXACT SIX를 다시 계산해, 6개 돌의 ring과 SVG 직선으로 로비로 나갈 때까지 표시합니다. 돌 개수 승패와 일반 CHECK 상태에는 이 영구 선을 표시하지 않습니다.
 
 로비의 **HOW TO PLAY**은 FLIP, TWO MOVES, SIX, CHECK, CHECK 방어, NO DOUBLE-SIX을 6단계의 HTML/CSS 미니 보드로 설명합니다. NEXT/BACK, 키보드 ←/→, ESC를 지원합니다.
 

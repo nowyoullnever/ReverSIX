@@ -109,6 +109,7 @@ input {
   border-top: 1px solid black;
   border-left: 1px solid black;
   margin: auto;
+  position: relative;
 }
 .cell {
   padding: 0;
@@ -185,6 +186,37 @@ input {
   animation:
     stone-flip 320ms ease-in-out 120ms both,
     six-pulse 600ms ease-in-out 440ms 2;
+}
+.six-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+.defeat-six-line {
+  stroke: #000;
+  stroke-width: 4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  animation: defeat-line-in 180ms ease-out both;
+}
+@keyframes defeat-line-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.78;
+  }
+}
+.defeat-six .stone {
+  outline: 2px solid #000;
+  outline-offset: 4px;
+}
+.result-detail {
+  margin: -12px 0 16px;
+  font-size: 0.875rem;
 }
 @keyframes six-pulse {
   50% {
@@ -297,6 +329,9 @@ input {
   .six-highlight .stone,
   .six-highlight .stone-flip {
     animation: none !important;
+  }
+  .defeat-six-line {
+    animation: none;
   }
 }
 .black .stone {

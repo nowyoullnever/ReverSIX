@@ -6,6 +6,35 @@ export interface BoardPresentation {
   change?: BoardChange;
   lastPlaced?: number;
   six?: number[];
+  defeatLines?: number[][];
+}
+const svg = (name: string) =>
+  document.createElementNS("http://www.w3.org/2000/svg", name);
+function drawDefeatLines(board: HTMLElement, lines: number[][] = []) {
+  let overlay = board.querySelector<SVGSVGElement>(":scope > .six-lines");
+  if (!overlay) {
+    overlay = svg("svg") as SVGSVGElement;
+    overlay.classList.add("six-lines");
+    overlay.setAttribute("viewBox", "0 0 100 100");
+    overlay.setAttribute("preserveAspectRatio", "none");
+    overlay.setAttribute("aria-hidden", "true");
+    board.prepend(overlay);
+  }
+  overlay.replaceChildren(
+    ...lines.map((line) => {
+      const start = line[0],
+        end = line.at(-1)!;
+      const path = svg("line");
+      path.classList.add("defeat-six-line");
+      path.setAttribute("x1", `${(start % 10) * 10 + 5}`);
+      path.setAttribute("y1", `${Math.floor(start / 10) * 10 + 5}`);
+      path.setAttribute("x2", `${(end % 10) * 10 + 5}`);
+      path.setAttribute("y2", `${Math.floor(end / 10) * 10 + 5}`);
+      path.setAttribute("data-start", `${start}`);
+      path.setAttribute("data-end", `${end}`);
+      return path;
+    }),
+  );
 }
 export function updateBoard(
   board: HTMLElement,
@@ -16,8 +45,10 @@ export function updateBoard(
 ) {
   const changed = revisions.get(board) !== state.revision;
   const { legal, forbidden } = getMoveOptions(state);
+  const cells = board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
+  drawDefeatLines(board, presentation.defeatLines);
   for (let i = 0; i < 100; i++) {
-    const cell = board.children[i] as HTMLButtonElement;
+    const cell = cells[i];
     const color = state.board[i];
     cell.disabled = !enabled || !legal.includes(i);
     cell.onclick = () => {
@@ -61,6 +92,10 @@ export function updateBoard(
       "six-highlight",
       presentation.six?.includes(i) ?? false,
     );
+    cell.classList.toggle(
+      "defeat-six",
+      presentation.defeatLines?.some((line) => line.includes(i)) ?? false,
+    );
   }
   revisions.set(board, state.revision);
 }
@@ -73,7 +108,11 @@ export function boardView(
   const board = document.createElement("div");
   board.className = "board";
   board.setAttribute("aria-label", "10 by 10 game board");
-  for (let i = 0; i < 100; i++) board.append(document.createElement("button"));
+  for (let i = 0; i < 100; i++) {
+    const cell = document.createElement("button");
+    cell.className = "cell";
+    board.append(cell);
+  }
   updateBoard(board, state, enabled, move, presentation);
   return board;
 }

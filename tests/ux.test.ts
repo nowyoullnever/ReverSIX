@@ -105,10 +105,10 @@ it("same-revision UI updates preserve animated DOM and input remains locked", ()
     change: moveTransition(a, b),
     lastPlaced: 34,
   });
-  const stone = board.children[44].firstChild;
+  const stone = board.querySelectorAll(".cell")[44].firstChild;
   expect((stone as HTMLElement).classList.contains("stone-flip")).toBe(true);
   updateBoard(board, b.game, false, click);
-  expect(board.children[44].firstChild).toBe(stone);
+  expect(board.querySelectorAll(".cell")[44].firstChild).toBe(stone);
   expect(board.querySelectorAll("button:not(:disabled)")).toHaveLength(0);
 });
 it("emits join once, CHECK, defense, counter-check and PASS transitions", () => {
