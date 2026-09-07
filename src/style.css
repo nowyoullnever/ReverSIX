@@ -45,6 +45,8 @@ input {
 button {
   padding: 12px 16px;
   cursor: pointer;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 button:disabled {
   cursor: default;
@@ -73,9 +75,11 @@ label {
   margin-bottom: 14px;
 }
 .join-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
   gap: 8px;
 }
+.join-row button { min-width: 86px; white-space: nowrap; }
 input {
   min-width: 0;
   width: 100%;
@@ -491,7 +495,15 @@ input {
 }
 p {
   line-height: 1.6;
+  max-width: 100%;
 }
+html[lang="ko"] button,
+html[lang="ko"] p,
+html[lang="ko"] h2,
+html[lang="ko"] label,
+html[lang="ko"] .notice { word-break: keep-all; overflow-wrap: normal; }
+html[lang="ko"] .join-row button,
+html[lang="ko"] .game-controls button { font-size: clamp(.85rem, 3.4vw, 1rem); }
 [role="alert"] {
   font-size: 0.9rem;
   margin-top: 20px;
@@ -513,4 +525,10 @@ p {
     width: 100%;
   }
   .settings { padding:24px 20px; }
+  .game-controls { gap:4px; }
+  .game-controls button { padding-inline:8px; }
+}
+@media (max-width: 340px) {
+  .join-row { grid-template-columns: 1fr; }
+  .join-row button { width:100%; min-height:44px; }
 }
