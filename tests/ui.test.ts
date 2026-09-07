@@ -119,6 +119,46 @@ it("keeps sound controls out of the active game screen", () => {
   }, "ABC234", "black", true, true, false, vi.fn(), vi.fn());
   expect(root.querySelector(".sound")).toBeNull();
 });
+it("keeps quick chat closed by default and exposes explicit open and close controls", () => {
+  const root = document.createElement("main");
+  const room: Room = {
+    status: "playing",
+    createdAt: 1,
+    players: { black: "a", white: "b" },
+    game: createGame(),
+  };
+  const show = vi.fn(), close = vi.fn();
+  const chat = {
+    enabled: true,
+    open: false,
+    disabled: false,
+    messages: [],
+    send: vi.fn(),
+    show,
+    close,
+  };
+  gameView(root, room, "ABC234", "black", true, true, false, vi.fn(), vi.fn(), { quickChat: chat });
+  const toggle = root.querySelector<HTMLButtonElement>(".chat-toggle")!;
+  expect(toggle.hidden).toBe(false);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  expect(toggle.getAttribute("aria-controls")).toBe("quick-chat-panel");
+  expect(root.querySelector<HTMLElement>("#quick-chat-panel")!.hidden).toBe(true);
+  toggle.click();
+  expect(show).toHaveBeenCalledOnce();
+
+  gameView(root, room, "ABC234", "black", true, true, false, vi.fn(), vi.fn(), {
+    quickChat: { ...chat, open: true },
+  });
+  expect(root.querySelector(".game-layout")?.classList.contains("chat-open")).toBe(true);
+  expect(toggle.hidden).toBe(true);
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(root.querySelector<HTMLElement>("#quick-chat-panel")!.hidden).toBe(false);
+  const closeButton = root.querySelector<HTMLButtonElement>(".quick-chat-close")!;
+  expect(closeButton.textContent).toBe("×");
+  expect(closeButton.getAttribute("aria-label")).toBe("Hide chat");
+  closeButton.click();
+  expect(close).toHaveBeenCalledOnce();
+});
 it("uses accessible fixed-width animated dots for waiting and reconnecting states", () => {
   const root = document.createElement("main");
   const waiting = { status: "waiting" as const, createdAt: 1, players: { black: "a" }, game: createGame() };

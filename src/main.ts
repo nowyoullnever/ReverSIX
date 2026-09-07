@@ -47,6 +47,7 @@ let quickChatRoom = "";
 let quickChatGeneration = 0;
 let quickChatCooldownUntil = 0;
 let quickChatTimer: ReturnType<typeof setTimeout> | undefined;
+let chatOpen = false;
 const desktopChat = window.matchMedia("(min-width: 900px)");
 const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
@@ -142,10 +143,19 @@ function render(change?: BoardChange) {
           }),
         quickChat: {
           enabled: desktopChat.matches,
+          open: chatOpen,
           messages: quickChatMessages,
           disabled: isQuickChatCoolingDown(Date.now(), quickChatCooldownUntil),
           error: quickChatError,
           send: (presetId) => void sendPreset(presetId),
+          show: () => {
+            chatOpen = true;
+            render();
+          },
+          close: () => {
+            chatOpen = false;
+            render();
+          },
         },
       },
     );
@@ -276,6 +286,7 @@ function stopQuickChat() {
   clearTimeout(quickChatTimer);
   quickChatTimer = undefined;
   quickChatCooldownUntil = 0;
+  chatOpen = false;
 }
 function reconcileQuickChat() {
   if (!room || !code || !desktopChat.matches) {
@@ -335,6 +346,7 @@ async function sendPreset(presetId: ChatPresetId) {
   }
 }
 desktopChat.addEventListener("change", () => {
+  if (!desktopChat.matches) chatOpen = false;
   reconcileQuickChat();
   render();
 });

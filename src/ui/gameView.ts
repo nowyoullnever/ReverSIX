@@ -35,7 +35,7 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout"><div class="board-slot"></div><div class="quick-chat-slot" hidden></div></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout"><div class="board-wrap"><div class="board-slot"></div><button class="chat-toggle" type="button" aria-controls="quick-chat-panel" aria-expanded="false"></button></div><div class="quick-chat-slot" id="quick-chat-panel" hidden></div></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
@@ -96,14 +96,25 @@ export function gameView(
     move,
     finalPresentation,
   );
+  const chat = presentation.quickChat;
+  const layout = root.querySelector<HTMLElement>(".game-layout")!;
+  layout.classList.toggle("chat-open", Boolean(chat?.enabled && chat.open));
+  const chatToggle = root.querySelector<HTMLButtonElement>(".chat-toggle")!;
+  chatToggle.textContent = t("chat.title");
+  chatToggle.hidden = !chat?.enabled || chat.open;
+  chatToggle.setAttribute("aria-expanded", String(Boolean(chat?.open)));
+  chatToggle.onclick = () => chat?.show();
   quickChatView(
     root.querySelector<HTMLElement>(".quick-chat-slot")!,
     room.players[player]!,
-    presentation.quickChat ?? {
+    chat ?? {
       enabled: false,
+      open: false,
       messages: [],
       disabled: true,
       send: () => {},
+      show: () => {},
+      close: () => {},
     },
   );
   root.querySelector(".you")!.textContent =

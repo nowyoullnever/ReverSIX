@@ -124,14 +124,33 @@ input {
   position: relative;
 }
 .game-layout {
+  display: block;
+  position: relative;
+}
+.game-layout.chat-open {
   display: grid;
   grid-template-columns: minmax(0, 680px) 340px;
   align-items: start;
   justify-content: center;
   gap: 40px;
 }
+.board-wrap {
+  position: relative;
+  width: min(100%, 680px, calc(100dvh - 290px));
+  margin: auto;
+}
 .board-slot { min-width: 0; }
+.board-wrap .board { width: 100%; }
 .quick-chat-slot { min-width: 0; }
+.chat-toggle {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: .75rem;
+}
+.chat-toggle[hidden] { display: none; }
 .quick-chat {
   position: relative;
   display: grid;
@@ -140,12 +159,27 @@ input {
   background: #fff;
   text-align: left;
 }
+.quick-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 49px;
+  border-bottom: 1px solid #000;
+}
 .quick-chat-title {
   margin: 0;
   padding: 14px 16px;
-  border-bottom: 1px solid #000;
   font-size: .875rem;
   letter-spacing: .08em;
+}
+.quick-chat-close {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 .quick-chat-history {
   height: min(420px, calc(100dvh - 360px));
@@ -652,7 +686,8 @@ html[lang="ko"] .game-controls button { font-size: clamp(.85rem, 3.4vw, 1rem); }
 @media (max-width: 899px) {
   main[data-room] { width: min(100% - 24px, 680px); }
   .game-layout { display: block; }
-  .quick-chat-slot { display: none; }
+  .chat-toggle,
+  .quick-chat-slot { display: none !important; }
 }
 @media (max-width: 340px) {
   .join-row { grid-template-columns: 1fr; }

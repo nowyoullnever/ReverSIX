@@ -45,12 +45,15 @@ it("renders preset-only chat and sends a selected ID immediately", () => {
     "a",
     {
       enabled: true,
+      open: true,
       disabled: false,
       messages: [
         { id: "1", uid: "a", presetId: "goodMove", createdAt: 1 },
         { id: "2", uid: "b", presetId: "bruh", createdAt: 2 },
       ],
       send,
+      show: vi.fn(),
+      close: vi.fn(),
     },
   );
   expect(slot.querySelector("input, textarea")).toBeNull();
@@ -71,18 +74,24 @@ it("localizes only chat chrome and removes the panel when disabled", () => {
   const slot = document.createElement("div");
   quickChatView(slot, "a", {
     enabled: true,
+    open: true,
     disabled: false,
     messages: [{ id: "1", uid: "a", presetId: "thanks", createdAt: 1 }],
     send: vi.fn(),
+    show: vi.fn(),
+    close: vi.fn(),
   });
   expect(slot.textContent).toContain("채팅");
   expect(slot.textContent).toContain("메시지 선택...");
   expect(slot.textContent).toContain("나Thanks!");
   quickChatView(slot, "a", {
     enabled: false,
+    open: false,
     disabled: true,
     messages: [],
     send: vi.fn(),
+    show: vi.fn(),
+    close: vi.fn(),
   });
   expect(slot.hidden).toBe(true);
   expect(slot.childElementCount).toBe(0);

@@ -9,10 +9,13 @@ import type { QuickChatMessage } from "../online/quickChat";
 
 export interface QuickChatPresentation {
   enabled: boolean;
+  open: boolean;
   messages: QuickChatMessage[];
   disabled: boolean;
   error?: string;
   send: (presetId: ChatPresetId) => void;
+  show: () => void;
+  close: () => void;
 }
 
 export function quickChatView(
@@ -20,7 +23,7 @@ export function quickChatView(
   currentUid: string,
   presentation: QuickChatPresentation,
 ) {
-  if (!presentation.enabled) {
+  if (!presentation.enabled || !presentation.open) {
     slot.hidden = true;
     slot.replaceChildren();
     return;
@@ -30,8 +33,16 @@ export function quickChatView(
   if (!panel) {
     panel = document.createElement("section");
     panel.className = "quick-chat";
+    const header = document.createElement("header");
+    header.className = "quick-chat-header";
     const heading = document.createElement("h2");
     heading.className = "quick-chat-title";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "quick-chat-close";
+    close.textContent = "×";
+    close.onclick = () => presentation.close();
+    header.append(heading, close);
     const history = document.createElement("div");
     history.className = "quick-chat-history";
     history.setAttribute("aria-live", "polite");
@@ -74,12 +85,16 @@ export function quickChatView(
     const error = document.createElement("p");
     error.className = "quick-chat-error";
     error.setAttribute("role", "alert");
-    panel.append(heading, history, picker, error);
+    panel.append(header, history, picker, error);
     slot.append(panel);
   }
 
   panel.querySelector<HTMLElement>(".quick-chat-title")!.textContent =
     t("chat.title");
+  panel.querySelector<HTMLButtonElement>(".quick-chat-close")!.setAttribute(
+    "aria-label",
+    t("chat.hide"),
+  );
   const choose = panel.querySelector<HTMLButtonElement>(".quick-chat-choose")!;
   choose.textContent = t("chat.choose");
   choose.disabled = presentation.disabled;
