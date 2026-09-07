@@ -60,7 +60,8 @@ export function updateBoard(
       if (!cell.disabled) move(i);
     };
     if (changed) {
-      cell.className = `cell ${color} ${!color && legal.includes(i) ? "legal" : ""}`;
+      const boardColor = (Math.floor(i / 10) + (i % 10)) % 2 ? "board-color-b" : "board-color-a";
+      cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""}`;
       cell.replaceChildren();
       cell.setAttribute(
         "aria-label",

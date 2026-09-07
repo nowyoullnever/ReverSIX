@@ -131,8 +131,8 @@ input {
   place-items: center;
   position: relative;
 }
-.board-color-a { background:var(--board-color-a); }
-.board-color-b { background:var(--board-color-b); }
+.cell.board-color-a, .cell.board-color-a:hover { background-color:var(--board-color-a); }
+.cell.board-color-b, .cell.board-color-b:hover { background-color:var(--board-color-b); }
 .stone {
   position: relative;
   width: 78%;
