@@ -12,6 +12,8 @@ it("renders 100 cells and only legal moves can be clicked", () => {
   const move = vi.fn(),
     board = boardView(createGame(), true, move);
   expect(cells(board)).toHaveLength(100);
+  expect(cells(board)[0].style.backgroundColor).toBe("var(--board-color-a)");
+  expect(cells(board)[1].style.backgroundColor).toBe("var(--board-color-b)");
   expect(board.querySelectorAll("button:not(:disabled)")).toHaveLength(4);
   cells(board)[34].click();
   expect(move).toHaveBeenCalledWith(34);

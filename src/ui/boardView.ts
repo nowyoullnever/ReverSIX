@@ -12,6 +12,12 @@ export interface BoardPresentation {
 }
 const svg = (name: string) =>
   document.createElementNS("http://www.w3.org/2000/svg", name);
+const applyBoardColor = (cell: HTMLElement, index: number) => {
+  cell.style.backgroundColor =
+    (Math.floor(index / 10) + (index % 10)) % 2 === 0
+      ? "var(--board-color-a)"
+      : "var(--board-color-b)";
+};
 function drawDefeatLines(board: HTMLElement, lines: number[][] = []) {
   let overlay = board.querySelector<SVGSVGElement>(":scope > .six-lines");
   if (!overlay) {
@@ -54,6 +60,7 @@ export function updateBoard(
   board.classList.toggle("defeat-sequence", Boolean(presentation.defeatSequence));
   for (let i = 0; i < 100; i++) {
     const cell = cells[i];
+    applyBoardColor(cell, i);
     const color = state.board[i];
     cell.disabled = !enabled || !legal.includes(i);
     cell.onclick = () => {
@@ -115,6 +122,7 @@ export function boardView(
     const cell = document.createElement("button");
     cell.className = `cell board-color-${(Math.floor(i / 10) + i % 10) % 2 ? "b" : "a"}`;
     board.append(cell);
+    applyBoardColor(cell, i);
   }
   updateBoard(board, state, enabled, move, presentation);
   return board;

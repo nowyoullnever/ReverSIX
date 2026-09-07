@@ -59,7 +59,7 @@ input:focus-visible {
   outline: 3px solid #555;
   outline-offset: 3px;
 }
-button:not(:disabled):hover {
+button:not(.cell):not(:disabled):hover {
   background: #eee;
 }
 .lobby {
