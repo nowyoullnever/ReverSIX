@@ -1,0 +1,31 @@
+{
+  "name": "reversix",
+  "version": "1.0.0",
+  "description": "Private two-player REVERSIX! board game",
+  "scripts": {
+    "test": "vitest run --exclude tests/emulator.test.ts",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test:watch": "vitest --exclude tests/emulator.test.ts",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:online": "node scripts/test-online.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowyoullnever/ReverSIX.git"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.18.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase-tools": "^15.29.0",
+    "jsdom": "^30.0.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  },
+  "private": true
+}
