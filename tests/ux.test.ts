@@ -147,12 +147,14 @@ it("toast messages are queued and disappear automatically", () => {
   const toast = new Toast();
   toast.show(["PLAYER JOINED", "CHECK!"]);
   expect(toast.element.textContent).toBe("PLAYER JOINED");
-  vi.advanceTimersByTime(2000);
+  vi.advanceTimersByTime(2180);
   expect(toast.element.textContent).toBe("CHECK!");
-  vi.advanceTimersByTime(2000);
+  expect(toast.element.classList.contains("toast-check")).toBe(true);
+  vi.advanceTimersByTime(2180);
   expect(toast.element.hidden).toBe(true);
 });
 it("tutorial supports next/back, keyboard navigation, all six steps and close", () => {
+  vi.useFakeTimers();
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
   };
@@ -179,14 +181,17 @@ it("tutorial supports next/back, keyboard navigation, all six steps and close", 
   );
   expect(tutorialSteps).toHaveLength(6);
   button("PLAY").click();
+  vi.advanceTimersByTime(180);
   expect(dialog.isConnected).toBe(false);
 });
 it("tutorial escape restores focus to its opener", () => {
+  vi.useFakeTimers();
   const opener = document.createElement("button");
   document.body.append(opener);
   opener.focus();
   const dialog = openTutorial();
   dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+  vi.advanceTimersByTime(180);
   expect(document.activeElement).toBe(opener);
   expect(dialog.isConnected).toBe(false);
 });

@@ -102,15 +102,26 @@ export function openTutorial(onClose: () => void = () => {}) {
   dialog.setAttribute("aria-labelledby", "tutorial-title");
   const previousFocus = document.activeElement as HTMLElement | null;
   let index = 0;
-  const close = () => {
+  let closing = false;
+  const finishClose = () => {
     dialog.close();
     dialog.remove();
     previousFocus?.focus();
     onClose();
   };
+  const close = () => {
+    if (closing) return;
+    closing = true;
+    dialog.classList.add("tutorial-closing");
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+      finishClose();
+    else setTimeout(finishClose, 180);
+  };
   function render() {
     const step = tutorialSteps[index];
     dialog.replaceChildren();
+    const content = document.createElement("div");
+    content.className = "tutorial-step-enter";
     const count = document.createElement("p");
     count.className = "step-count";
     count.textContent = `HOW TO PLAY · ${index + 1} / 6`;
@@ -118,19 +129,19 @@ export function openTutorial(onClose: () => void = () => {}) {
     title.id = "tutorial-title";
     title.textContent = step.title;
     title.tabIndex = -1;
-    dialog.append(count, title);
+    content.append(count, title);
     const illustration = document.createElement("div");
     illustration.className = "tutorial-boards";
     step.rows.forEach((row) => illustration.append(miniBoard(row)));
-    dialog.append(illustration);
+    content.append(illustration);
     const caption = document.createElement("p");
     caption.className = "tutorial-caption";
     caption.textContent = step.caption;
-    dialog.append(caption);
+    content.append(caption);
     step.paragraphs.forEach((text) => {
       const p = document.createElement("p");
       p.textContent = text;
-      dialog.append(p);
+      content.append(p);
     });
     const controls = document.createElement("div");
     controls.className = "tutorial-controls";
@@ -155,7 +166,8 @@ export function openTutorial(onClose: () => void = () => {}) {
     exit.textContent = "CLOSE";
     exit.onclick = close;
     controls.append(back, next, exit);
-    dialog.append(controls);
+    content.append(controls);
+    dialog.append(content);
     title.focus();
   }
   dialog.addEventListener("cancel", (event) => {
@@ -177,6 +189,7 @@ export function openTutorial(onClose: () => void = () => {}) {
   document.body.append(dialog);
   render();
   dialog.showModal();
+  dialog.classList.add("tutorial-opening");
   dialog.querySelector<HTMLElement>("h2")!.focus();
   return dialog;
 }

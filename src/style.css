@@ -200,23 +200,46 @@ input {
   stroke-width: 4;
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
-  animation: defeat-line-in 180ms ease-out both;
+  opacity: 0.78;
 }
-@keyframes defeat-line-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.78;
-  }
+.defeat-sequence .defeat-six-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation:
+    defeat-line-draw 320ms ease-out calc(540ms + var(--defeat-delay)) both,
+    defeat-line-pulse 170ms ease-out calc(870ms + var(--defeat-delay)) both;
+}
+@keyframes defeat-line-draw {
+  to { stroke-dashoffset: 0; opacity: 0.78; }
+}
+@keyframes defeat-line-pulse {
+  0%, 100% { opacity: 0.78; stroke-width: 4; }
+  45% { opacity: 1; stroke-width: 5; }
 }
 .defeat-six .stone {
   outline: 2px solid #000;
   outline-offset: 4px;
 }
+.defeat-sequence .defeat-six .stone {
+  outline-color: transparent;
+  animation: defeat-stone-flash 420ms ease-in-out 150ms both;
+}
+@keyframes defeat-stone-flash {
+  0%, 100% { outline-color: #000; outline-offset: 4px; transform: scale(1); }
+  18%, 52% { outline-color: transparent; outline-offset: 2px; transform: scale(1); }
+  35%, 70% { outline-color: #000; outline-offset: 5px; transform: scale(1.05); }
+}
 .result-detail {
   margin: -12px 0 16px;
   font-size: 0.875rem;
+}
+.result-enter {
+  animation: result-enter 210ms ease-out 940ms both;
+}
+@keyframes result-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes six-pulse {
   50% {
@@ -242,6 +265,31 @@ input {
   font-size: clamp(1.5rem, 6vw, 2rem);
   padding: 16px 24px;
 }
+.toast-counter {
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  padding: 16px 24px;
+}
+.toast-enter { animation: toast-enter 180ms ease-out both; }
+.toast-leave { animation: toast-leave 180ms ease-in both; }
+.toast-check.toast-enter { animation: toast-check-enter 230ms ease-out both; }
+.toast-counter.toast-enter { animation: toast-counter-enter 240ms ease-out both; }
+.toast-defended.toast-enter, .toast-pass.toast-enter { animation: toast-enter 180ms ease-out both; }
+@keyframes toast-enter {
+  from { opacity: 0; transform: translate(-50%, -3px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toast-leave {
+  to { opacity: 0; transform: translate(-50%, -2px); }
+}
+@keyframes toast-check-enter {
+  from { opacity: 0; transform: translate(-50%, -3px) scale(.96); letter-spacing: .12em; }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); letter-spacing: normal; }
+}
+@keyframes toast-counter-enter {
+  0% { opacity: 0; transform: translate(-50%, -3px) scale(.96); }
+  55% { opacity: .7; transform: translate(-50%, 0) scale(1.015); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
 .game-controls {
   display: flex;
   justify-content: center;
@@ -265,6 +313,37 @@ input {
 .lobby > .how-to-play {
   margin-top: 32px;
 }
+.lobby-status {
+  min-height: 1.6rem;
+  margin: 20px 0 -18px;
+  font-size: .875rem;
+}
+.animated-dots {
+  display: inline-block;
+  width: 1.5em;
+  text-align: left;
+}
+.animated-dots::after {
+  content: ".";
+  animation: animated-dots 1050ms steps(1, end) infinite;
+}
+@keyframes animated-dots {
+  0%, 33.2% { content: "."; }
+  33.3%, 66.5% { content: ".."; }
+  66.6%, 100% { content: "..."; }
+}
+.text-fade-in { animation: text-fade-in 160ms ease-out both; }
+.text-status-change { animation: text-fade-in 140ms ease-out both; }
+.notice-enter { animation: text-fade-in 180ms ease-out both; }
+.copy-feedback { animation: copy-feedback 140ms ease-out both; }
+@keyframes text-fade-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes copy-feedback {
+  from { opacity: .45; transform: scale(.97); }
+  to { opacity: 1; transform: scale(1); }
+}
 .tutorial {
   color: #000;
   background: #fff;
@@ -275,6 +354,15 @@ input {
   overflow: auto;
   text-align: center;
 }
+.tutorial-opening { animation: tutorial-open 180ms ease-out both; }
+.tutorial-closing { animation: tutorial-close 180ms ease-in both; }
+.tutorial-step-enter { animation: tutorial-step 160ms ease-out both; }
+@keyframes tutorial-open {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes tutorial-close { to { opacity: 0; transform: translateY(2px); } }
+@keyframes tutorial-step { from { opacity: 0; } to { opacity: 1; } }
 .tutorial::backdrop {
   background: rgb(255 255 255 / 0.85);
 }
@@ -330,7 +418,29 @@ input {
   .six-highlight .stone-flip {
     animation: none !important;
   }
-  .defeat-six-line {
+  .defeat-six .stone,
+  .defeat-sequence .defeat-six .stone,
+  .defeat-sequence .defeat-six-line,
+  .result-enter,
+  .toast-enter,
+  .toast-leave,
+  .toast-check.toast-enter,
+  .toast-counter.toast-enter,
+  .text-fade-in,
+  .text-status-change,
+  .notice-enter,
+  .copy-feedback,
+  .tutorial-opening,
+  .tutorial-closing,
+  .tutorial-step-enter {
+    animation: none !important;
+  }
+  .defeat-sequence .defeat-six-line {
+    stroke-dashoffset: 0;
+    opacity: .78;
+  }
+  .animated-dots::after {
+    content: "...";
     animation: none;
   }
 }

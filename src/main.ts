@@ -10,6 +10,7 @@ import {
 } from "./online/rooms";
 import { watchRoom } from "./online/sync";
 import { lobby } from "./ui/lobby";
+import type { LobbyActivity } from "./ui/lobby";
 import { gameView } from "./ui/gameView";
 import { getSixLines } from "./game/six";
 import { Toast } from "./ui/toast";
@@ -27,6 +28,7 @@ let room: Room | null = null,
   code = "",
   busy = false,
   connected = false;
+let lobbyActivity: LobbyActivity;
 let presence: string[] = [],
   stop: (() => void) | undefined,
   error = "";
@@ -36,6 +38,7 @@ const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
   six: number[] = [],
   highlightTimer: ReturnType<typeof setTimeout> | undefined;
+let defeatSequenceRevision = -1;
 const toast = new Toast();
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
@@ -69,6 +72,13 @@ const presenter = new RoomPresenter(
       JSON.stringify({ revision: next.game.revision, index: lastPlaced }),
     );
     const events = roomEvents(previous, next);
+    if (
+      previous &&
+      !previous.game.winner &&
+      Boolean(next.game.winner) &&
+      next.game.events.includes("CHECK DEFENSE FAILED")
+    )
+      defeatSequenceRevision = next.game.revision;
     toast.show(events);
     if (events.includes("CHECK!") || events.includes("COUNTER CHECK!")) {
       clearTimeout(highlightTimer);
@@ -108,6 +118,7 @@ function render(change?: BoardChange) {
         change,
         lastPlaced,
         six,
+        defeatSequence: defeatSequenceRevision === room.game.revision,
         canUndo:
           room.status === "playing" && canUndo(room.game, player, history),
         undo: () =>
@@ -126,27 +137,32 @@ function render(change?: BoardChange) {
       root,
       firebaseConfigured,
       busy,
-      () => void action(async () => enter(await createRoom())),
+      () => void action(async () => enter(await createRoom()), "creating"),
       (value) =>
         void action(async () => {
           await joinRoom(value);
           await enter(value);
-        }),
+        }, "joining"),
+      lobbyActivity,
     );
   const existing = root.querySelector<HTMLElement>(".game-error");
   if (existing) {
     existing.textContent = error;
     existing.hidden = !error;
+    if (error) existing.classList.add("text-fade-in");
+    else existing.classList.remove("text-fade-in");
   } else if (error) {
     const p = document.createElement("p");
     p.setAttribute("role", "alert");
+    p.className = "text-fade-in";
     p.textContent = error;
     root.append(p);
   }
 }
-async function action(fn: () => Promise<unknown>) {
+async function action(fn: () => Promise<unknown>, activity?: LobbyActivity) {
   if (busy || presenter.locked) return;
   busy = true;
+  lobbyActivity = activity;
   error = "";
   render();
   try {
@@ -155,6 +171,7 @@ async function action(fn: () => Promise<unknown>) {
     error = (e as Error).message;
   } finally {
     busy = false;
+    lobbyActivity = undefined;
     render();
   }
 }
@@ -166,6 +183,7 @@ function leave() {
   presenceEvents.reset();
   clearTimeout(highlightTimer);
   six = [];
+  defeatSequenceRevision = -1;
   lastPlaced = -1;
   subscriptionGeneration++;
   stop?.();
@@ -230,4 +248,4 @@ async function enter(value: string) {
 render();
 const saved = sessionStorage.getItem("reversix-room");
 if (firebaseConfigured && saved && CODE_PATTERN.test(saved))
-  void action(() => enter(saved));
+  void action(() => enter(saved), "reconnecting");

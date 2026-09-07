@@ -2,10 +2,13 @@ import type { Player } from "../game/types";
 import { getSixLines } from "../game/six";
 import type { Room } from "../online/rooms";
 import { boardView, updateBoard, type BoardPresentation } from "./boardView";
+import { replayMotion, setStatusText } from "./motion";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
 }
+const lastTurn = new WeakMap<HTMLElement, Player>();
+const copyTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
 export function gameView(
   root: HTMLElement,
   room: Room,
@@ -29,7 +32,7 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
@@ -40,21 +43,31 @@ export function gameView(
     void navigator.clipboard
       .writeText(code)
       .then(() => {
-        copy.textContent = "COPIED";
+        showCopyFeedback(copy, "COPIED");
       })
       .catch(() => {
-        copy.textContent = "SELECT CODE";
+        showCopyFeedback(copy, "SELECT CODE");
       });
-  root.querySelector("h2")!.textContent =
+  const status = root.querySelector<HTMLElement>("h2")!;
+  const resultText = s.winner
+    ? s.winner === "draw"
+      ? "DRAW"
+      : s.winner === player
+        ? "YOU WIN"
+        : "YOU LOSE"
+    : undefined;
+  setStatusText(
+    status,
     room.status === "waiting"
-      ? "WAITING FOR PLAYER..."
-      : s.winner
-        ? s.winner === "draw"
-          ? "DRAW"
-          : s.winner === player
-            ? "YOU WIN"
-            : "YOU LOSE"
-        : `${s.currentPlayer.toUpperCase()}'S TURN — MOVE ${s.moveNumberInTurn} / ${s.turn === 0 ? 1 : 2}`;
+      ? "WAITING FOR PLAYER"
+      : resultText ?? `${s.currentPlayer.toUpperCase()}'S TURN — MOVE ${s.moveNumberInTurn} / ${s.turn === 0 ? 1 : 2}`,
+    room.status === "waiting",
+  );
+  const previousTurn = lastTurn.get(root);
+  if (!s.winner && previousTurn && previousTurn !== s.currentPlayer && s.currentPlayer === player)
+    replayMotion(status, "text-status-change");
+  if (!s.winner) lastTurn.set(root, s.currentPlayer);
+  status.classList.toggle("result-enter", Boolean(defenseFailed && presentation.defeatSequence));
   const check = root.querySelector<HTMLElement>(".check")!;
   check.hidden = !s.checkBy || Boolean(s.winner);
   check.textContent = s.checkBy
@@ -67,6 +80,7 @@ export function gameView(
       ? "SIX SURVIVED"
       : "SIX REMAINED"
     : "";
+  detail.classList.toggle("result-enter", Boolean(defenseFailed && presentation.defeatSequence));
   updateBoard(
     root.querySelector<HTMLElement>(".board")!,
     s,
@@ -80,11 +94,17 @@ export function gameView(
   );
   root.querySelector(".you")!.textContent =
     `YOU ARE ${player.toUpperCase()} · BLACK ${s.board.filter((c) => c === "black").length} / WHITE ${s.board.filter((c) => c === "white").length}`;
-  root.querySelector(".notice")!.textContent = !connected
-    ? "CONNECTION LOST — RECONNECTING..."
+  const notice = root.querySelector<HTMLElement>(".notice")!;
+  const noticeText = !connected
+    ? "CONNECTION LOST — RECONNECTING"
     : room.players.white && !opponentOnline
       ? "OPPONENT DISCONNECTED"
       : s.events.join(" · ");
+  const previousNotice = notice.dataset.message;
+  setStatusText(notice, noticeText, !connected);
+  notice.dataset.message = noticeText;
+  if (noticeText === "OPPONENT DISCONNECTED" && previousNotice !== noticeText)
+    replayMotion(notice, "notice-enter");
   root.querySelector<HTMLButtonElement>(".back")!.onclick = leave;
   const undo = root.querySelector<HTMLButtonElement>(".undo")!;
   undo.disabled =
@@ -92,4 +112,17 @@ export function gameView(
   undo.onclick = () => {
     if (!undo.disabled) presentation.undo?.();
   };
+}
+
+function showCopyFeedback(copy: HTMLButtonElement, label: string) {
+  clearTimeout(copyTimers.get(copy));
+  copy.textContent = label;
+  replayMotion(copy, "copy-feedback");
+  copyTimers.set(
+    copy,
+    setTimeout(() => {
+      copy.textContent = "COPY";
+      copy.classList.remove("copy-feedback");
+    }, 1200),
+  );
 }

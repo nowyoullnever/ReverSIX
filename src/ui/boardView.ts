@@ -7,6 +7,7 @@ export interface BoardPresentation {
   lastPlaced?: number;
   six?: number[];
   defeatLines?: number[][];
+  defeatSequence?: boolean;
 }
 const svg = (name: string) =>
   document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -21,11 +22,13 @@ function drawDefeatLines(board: HTMLElement, lines: number[][] = []) {
     board.prepend(overlay);
   }
   overlay.replaceChildren(
-    ...lines.map((line) => {
+    ...lines.map((line, index) => {
       const start = line[0],
         end = line.at(-1)!;
       const path = svg("line");
       path.classList.add("defeat-six-line");
+      path.setAttribute("pathLength", "1");
+      path.style.setProperty("--defeat-delay", `${Math.min(index * 80, 160)}ms`);
       path.setAttribute("x1", `${(start % 10) * 10 + 5}`);
       path.setAttribute("y1", `${Math.floor(start / 10) * 10 + 5}`);
       path.setAttribute("x2", `${(end % 10) * 10 + 5}`);
@@ -47,6 +50,7 @@ export function updateBoard(
   const { legal, forbidden } = getMoveOptions(state);
   const cells = board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
   drawDefeatLines(board, presentation.defeatLines);
+  board.classList.toggle("defeat-sequence", Boolean(presentation.defeatSequence));
   for (let i = 0; i < 100; i++) {
     const cell = cells[i];
     const color = state.board[i];
