@@ -170,16 +170,12 @@ it("tutorial supports next/back, keyboard navigation, all six steps and close", 
   button("NEXT").click();
   expect(dialog.textContent).toContain("2. TWO MOVES");
   button("BACK").click();
-  for (let i = 0; i < 5; i++)
+  for (let i = 0; i < 4; i++)
     dialog.dispatchEvent(
       new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
     );
-  expect(dialog.textContent).toContain("6. NO DOUBLE-SIX");
-  expect(dialog.textContent).toContain("🚫");
-  expect(dialog.textContent).toContain(
-    "both new stones belong to the same exact SIX",
-  );
-  expect(tutorialSteps).toHaveLength(6);
+  expect(dialog.textContent).toContain("5. BREAK THE SIX");
+  expect(tutorialSteps).toHaveLength(5);
   button("PLAY").click();
   vi.advanceTimersByTime(180);
   expect(dialog.isConnected).toBe(false);

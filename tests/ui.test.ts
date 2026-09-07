@@ -18,7 +18,7 @@ it("renders 100 cells and only legal moves can be clicked", () => {
   cells(board)[0].click();
   expect(move).toHaveBeenCalledTimes(1);
 });
-it("shows 🚫 only on Reversi-legal Double-Six forbidden cells", () => {
+it("does not mark Reversi-legal cells as forbidden", () => {
   const s = createGame();
   s.board = emptyBoard();
   s.turn = 1;
@@ -28,11 +28,11 @@ it("shows 🚫 only on Reversi-legal Double-Six forbidden cells", () => {
   s.board[43] = "white";
   const move = vi.fn(),
     board = boardView(s, true, move);
-  expect(cells(board)[42].textContent).toBe("🚫");
-  expect(cells(board)[42].disabled).toBe(true);
+  expect(cells(board)[42].textContent).toBe("");
+  expect(cells(board)[42].disabled).toBe(false);
   expect(cells(board)[99].textContent).toBe("");
   cells(board)[42].click();
-  expect(move).not.toHaveBeenCalled();
+  expect(move).toHaveBeenCalledWith(42);
 });
 it("disables board on opponent turn, waiting, disconnect and pending writes", () => {
   const r: Room = {

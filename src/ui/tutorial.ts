@@ -50,16 +50,6 @@ export const tutorialSteps: Step[] = [
     rows: ["BBWBBB", "WWWWWW"],
     caption: "BLACK SIX BROKEN + WHITE SIX → COUNTER CHECK",
   },
-  {
-    title: "6. NO DOUBLE-SIX",
-    paragraphs: [
-      "You cannot create an EXACT SIX that contains both stones placed during the same turn. The final board after flipping is what counts.",
-      "Two stones may still be placed on the same row, column, or diagonal. It is only forbidden if both new stones belong to the same exact SIX. A seven-stone run is allowed.",
-      "The 🚫 icon marks a Reversi-legal square forbidden by this rule. Other illegal squares have no icon.",
-    ],
-    rows: [".BBBB.", "1BBBB2"],
-    caption: "① → FLIP → ② → FLIP · 🚫 BOTH NEW STONES IN ONE SIX",
-  },
 ];
 export function miniBoard(row: string): HTMLElement {
   const board = document.createElement("div");
@@ -124,7 +114,7 @@ export function openTutorial(onClose: () => void = () => {}) {
     content.className = "tutorial-step-enter";
     const count = document.createElement("p");
     count.className = "step-count";
-    count.textContent = `HOW TO PLAY · ${index + 1} / 6`;
+    count.textContent = `HOW TO PLAY · ${index + 1} / ${tutorialSteps.length}`;
     const title = document.createElement("h2");
     title.id = "tutorial-title";
     title.textContent = step.title;
@@ -153,7 +143,7 @@ export function openTutorial(onClose: () => void = () => {}) {
       render();
     };
     const next = document.createElement("button");
-    next.textContent = index === 5 ? "PLAY" : "NEXT";
+    next.textContent = index === tutorialSteps.length - 1 ? "PLAY" : "NEXT";
     next.onclick = () => {
       if (index === 5) close();
       else {

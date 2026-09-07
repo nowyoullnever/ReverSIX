@@ -105,7 +105,7 @@ describe("Double-Six", () => {
     [2, 10, 1],
     [11, 11, 10],
     [71, -9, -10],
-  ])("blocks two new endpoints for axis %j", (start, step, side) => {
+  ])("allows two new endpoints for axis %j", (start, step, side) => {
     const b = emptyBoard();
     fill(
       b,
@@ -116,25 +116,19 @@ describe("Double-Six", () => {
       b[end + 2 * side] = "black";
     }
     const first = playMove(state(b), "black", start);
-    // If every second move is forbidden the engine correctly auto-ends the turn;
-    // inspect the intermediate board directly to test the forbidden classification.
     const middle = state(applyMove(b, "black", start), {
       moveNumberInTurn: 2,
       firstPlacedStone: start,
     });
-    expect(getMoveOptions(middle).forbidden).toContain(start + 5 * step);
-    expect(() => playMove(middle, "black", start + 5 * step)).toThrow(
-      "ILLEGAL MOVE",
-    );
+    expect(getMoveOptions(middle).legal).toContain(start + 5 * step);
     expect(first.board[start]).toBe("black");
   });
-  it("blocks a middle gap after second-move flips complete the run", () => {
+  it("allows a middle gap after second-move flips complete the run", () => {
     const b = emptyBoard();
     fill(b, [40, 41, 44, 45]);
     b[43] = "white";
     const s = state(b, { moveNumberInTurn: 2, firstPlacedStone: 40 });
-    expect(getMoveOptions(s).forbidden).toContain(42);
-    expect(getMoveOptions(s).forbidden).not.toContain(99);
+    expect(getMoveOptions(s).legal).toContain(42);
   });
   it("allows two stones in one maximal seven-stone run", () => {
     const b = emptyBoard();
@@ -305,14 +299,14 @@ describe("automatic pass and skips", () => {
     expect(end.events).toContain("BLACK SECOND MOVE SKIPPED");
     expect(end.winner).toBe("black");
   });
-  it("skips when every second Reversi move is forbidden", () => {
+  it("does not skip when a second Reversi move remains", () => {
     const b = emptyBoard();
     fill(b, [21, 22, 23, 24]);
     b[30] = b[35] = "white";
     b[40] = b[45] = b[46] = "black";
     const end = playMove(state(b), "black", 20);
-    expect(end.events).toContain("BLACK SECOND MOVE SKIPPED");
-    expect(end.board[25]).toBe("");
+    expect(end.events).not.toContain("BLACK SECOND MOVE SKIPPED");
+    expect(end.moveNumberInTurn).toBe(2);
   });
   it("judges CHECK after a one-move turn with no second move", () => {
     const b = emptyBoard();

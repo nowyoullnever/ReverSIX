@@ -48,7 +48,7 @@ export function updateBoard(
   presentation: BoardPresentation = {},
 ) {
   const changed = revisions.get(board) !== state.revision;
-  const { legal, forbidden } = getMoveOptions(state);
+  const { legal } = getMoveOptions(state);
   const cells = board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
   drawDefeatLines(board, presentation.defeatLines);
   board.classList.toggle("defeat-sequence", Boolean(presentation.defeatSequence));
@@ -64,7 +64,7 @@ export function updateBoard(
       cell.replaceChildren();
       cell.setAttribute(
         "aria-label",
-        `Row ${Math.floor(i / 10) + 1}, column ${(i % 10) + 1}: ${color || (forbidden.includes(i) ? "forbidden by double-six rule" : legal.includes(i) ? "legal move" : "empty")}`,
+        `Row ${Math.floor(i / 10) + 1}, column ${(i % 10) + 1}: ${color || (legal.includes(i) ? "legal move" : "empty")}`,
       );
       if (color) {
         const stone = document.createElement("span");
@@ -83,9 +83,6 @@ export function updateBoard(
           );
           stone.classList.add("stone-flip");
         }
-      } else if (forbidden.includes(i)) {
-        cell.textContent = "🚫";
-        cell.classList.add("forbidden");
       }
       cell.classList.toggle("first", i === state.firstPlacedStone);
     }
