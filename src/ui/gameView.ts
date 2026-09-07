@@ -98,7 +98,7 @@ export function gameView(
   );
   quickChatView(
     root.querySelector<HTMLElement>(".quick-chat-slot")!,
-    room.players,
+    room.players[player]!,
     presentation.quickChat ?? {
       enabled: false,
       messages: [],

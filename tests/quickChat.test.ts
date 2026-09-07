@@ -42,7 +42,7 @@ it("renders preset-only chat and sends a selected ID immediately", () => {
   const send = vi.fn();
   quickChatView(
     slot,
-    { black: "a", white: "b" },
+    "a",
     {
       enabled: true,
       disabled: false,
@@ -55,8 +55,10 @@ it("renders preset-only chat and sends a selected ID immediately", () => {
   );
   expect(slot.querySelector("input, textarea")).toBeNull();
   expect(slot.querySelectorAll(".quick-chat-preset")).toHaveLength(14);
-  expect(slot.textContent).toContain("BLACKGood move!");
-  expect(slot.textContent).toContain("WHITEBruh.");
+  expect(slot.textContent).toContain("MEGood move!");
+  expect(slot.textContent).toContain("OPPONENTBruh.");
+  expect(slot.querySelector(".quick-chat-message-me")?.textContent).toContain("Good move!");
+  expect(slot.querySelector(".quick-chat-message-opponent")?.textContent).toContain("Bruh.");
   slot.querySelector<HTMLButtonElement>(".quick-chat-choose")!.click();
   slot.querySelector<HTMLButtonElement>('[data-preset-id="goodMove"]')!.click();
   expect(send).toHaveBeenCalledOnce();
@@ -67,7 +69,7 @@ it("renders preset-only chat and sends a selected ID immediately", () => {
 it("localizes only chat chrome and removes the panel when disabled", () => {
   setLocale("ko");
   const slot = document.createElement("div");
-  quickChatView(slot, { black: "a", white: "b" }, {
+  quickChatView(slot, "a", {
     enabled: true,
     disabled: false,
     messages: [{ id: "1", uid: "a", presetId: "thanks", createdAt: 1 }],
@@ -75,8 +77,8 @@ it("localizes only chat chrome and removes the panel when disabled", () => {
   });
   expect(slot.textContent).toContain("채팅");
   expect(slot.textContent).toContain("메시지 선택...");
-  expect(slot.textContent).toContain("흑Thanks!");
-  quickChatView(slot, { black: "a", white: "b" }, {
+  expect(slot.textContent).toContain("나Thanks!");
+  quickChatView(slot, "a", {
     enabled: false,
     disabled: true,
     messages: [],

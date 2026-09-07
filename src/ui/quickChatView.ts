@@ -6,7 +6,6 @@ import {
   type ChatPresetId,
 } from "../online/chatPresets";
 import type { QuickChatMessage } from "../online/quickChat";
-import type { Room } from "../online/rooms";
 
 export interface QuickChatPresentation {
   enabled: boolean;
@@ -18,7 +17,7 @@ export interface QuickChatPresentation {
 
 export function quickChatView(
   slot: HTMLElement,
-  players: Room["players"],
+  currentUid: string,
   presentation: QuickChatPresentation,
 ) {
   if (!presentation.enabled) {
@@ -98,12 +97,14 @@ export function quickChatView(
       history.childElementCount === 0 ||
       history.scrollHeight - history.scrollTop - history.clientHeight <= 48;
     const rows = presentation.messages.map((message) => {
-      const row = document.createElement("p");
-      row.className = "quick-chat-message";
+      const mine = message.uid === currentUid;
+      const row = document.createElement("div");
+      row.className = `quick-chat-message quick-chat-message-${mine ? "me" : "opponent"}`;
       const sender = document.createElement("strong");
-      sender.textContent =
-        message.uid === players.black ? t("chat.black") : t("chat.white");
-      const text = document.createElement("span");
+      sender.className = "quick-chat-sender";
+      sender.textContent = t(mine ? "chat.me" : "chat.opponent");
+      const text = document.createElement("p");
+      text.className = "quick-chat-bubble";
       text.textContent = CHAT_PRESETS[message.presetId];
       row.append(sender, text);
       return row;
@@ -114,9 +115,7 @@ export function quickChatView(
   } else {
     for (const [index, message] of presentation.messages.entries()) {
       const sender = history.children[index]?.querySelector("strong");
-      if (sender)
-        sender.textContent =
-          message.uid === players.black ? t("chat.black") : t("chat.white");
+      if (sender) sender.textContent = t(message.uid === currentUid ? "chat.me" : "chat.opponent");
     }
   }
   const error = panel.querySelector<HTMLElement>(".quick-chat-error")!;
