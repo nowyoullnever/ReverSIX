@@ -11,8 +11,10 @@ import {
   joinRoomState,
   moveRoomState,
   normalizeRoom,
+  undoRoomState,
   type Room,
 } from "../src/online/rooms";
+import { recordMove } from "../src/game/history";
 let env: RulesTestEnvironment;
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -118,4 +120,48 @@ it("presence is member-only and each player owns their connection entries", asyn
   await set(ref(db("a"), "presence/ABC234/a/tab1"), true);
   await assertFails(set(ref(db("b"), "presence/ABC234/a/tab2"), true));
   await assertFails(get(ref(db("b"), "presence/ABC234")));
+});
+it("UNDO transaction restores both clients and advances revision with existing rules", async () => {
+  const a = ref(db("a"), "rooms/ABC234"),
+    b = ref(db("b"), "rooms/ABC234");
+  await set(a, waiting());
+  const joined = joinRoomState(waiting(), "b");
+  await set(b, joined);
+  const opening = moveRoomState(joined, "a", 0, 34);
+  await set(a, opening);
+  const first = moveRoomState(opening, "b", 1, 33);
+  await set(b, first);
+  const history = recordMove(undefined, opening.game, first.game);
+  const result = await runTransaction(
+    b,
+    (current) => undoRoomState(current ?? first, "b", history),
+    { applyLocally: false },
+  );
+  expect(result.committed).toBe(true);
+  const restored = normalizeRoom((await get(a)).val());
+  expect(restored.game).toEqual({ ...opening.game, revision: 3 });
+  expect(normalizeRoom((await get(b)).val())).toEqual(restored);
+  await assertFails(set(b, restored));
+});
+it("UNDO rejects stale revision and cannot write after the opponent turn starts", async () => {
+  const a = ref(db("a"), "rooms/ABC234"),
+    b = ref(db("b"), "rooms/ABC234");
+  await set(a, waiting());
+  const joined = joinRoomState(waiting(), "b");
+  await set(b, joined);
+  const opening = moveRoomState(joined, "a", 0, 34);
+  await set(a, opening);
+  const first = moveRoomState(opening, "b", 1, 33);
+  await set(b, first);
+  const history = recordMove(undefined, opening.game, first.game);
+  const { getMoveOptions } = await import("../src/game/rules");
+  const second = moveRoomState(
+    first,
+    "b",
+    2,
+    getMoveOptions(first.game).legal[0],
+  );
+  await set(b, second);
+  expect(() => undoRoomState(second, "b", history)).toThrow("STATE CHANGED");
+  await assertFails(set(b, { ...first, game: { ...first.game, revision: 4 } }));
 });

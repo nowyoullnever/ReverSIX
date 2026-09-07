@@ -2,6 +2,7 @@ import { get, ref, runTransaction } from "firebase/database";
 import { createGame, playMove } from "../game/gameState";
 import type { GameState, Player } from "../game/types";
 import { connection } from "./firebase";
+import { undoMove, type MoveHistory } from "../game/history";
 export interface Room {
   status: "waiting" | "playing" | "finished";
   createdAt: number;
@@ -111,4 +112,41 @@ export async function submitMove(
     { applyLocally: false },
   );
   if (!result.committed) throw new Error(failure);
+  return normalizeRoom(result.snapshot.val());
+}
+export function undoRoomState(
+  room: Room,
+  uid: string,
+  history: MoveHistory,
+): Room {
+  if (room.status !== "playing" || room.game.winner)
+    throw new Error("GAME IS NOT ACTIVE");
+  const player = history.player;
+  if (room.players[player] !== uid) throw new Error("NOT YOUR TURN");
+  return {
+    ...room,
+    game: undoMove(normalizeRoom(room).game, player, history).game,
+  };
+}
+export async function submitUndo(
+  code: string,
+  history: MoveHistory,
+): Promise<Room> {
+  const { db, uid } = await connection();
+  let failure = "ROOM NOT FOUND";
+  const result = await runTransaction(
+    ref(db, `rooms/${code}`),
+    (current) => {
+      if (!current) return;
+      try {
+        return undoRoomState(current, uid, history);
+      } catch (error) {
+        failure = (error as Error).message;
+        return;
+      }
+    },
+    { applyLocally: false },
+  );
+  if (!result.committed) throw new Error(failure);
+  return normalizeRoom(result.snapshot.val());
 }

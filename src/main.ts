@@ -5,11 +5,22 @@ import {
   createRoom,
   joinRoom,
   submitMove,
+  submitUndo,
   type Room,
 } from "./online/rooms";
 import { watchRoom } from "./online/sync";
 import { lobby } from "./ui/lobby";
 import { gameView } from "./ui/gameView";
+import { getSixLines } from "./game/six";
+import { Toast } from "./ui/toast";
+import { RoomPresenter } from "./ui/presenter";
+import {
+  PresenceEvents,
+  roomEvents,
+  compareBoards,
+  type BoardChange,
+} from "./ui/transitions";
+import { canUndo, recordMove, type MoveHistory } from "./game/history";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -20,7 +31,60 @@ let presence: string[] = [],
   stop: (() => void) | undefined,
   error = "";
 let subscriptionGeneration = 0;
-function render() {
+let history: MoveHistory | undefined;
+const moveMarkers = new Map<number, number>();
+let lastPlaced = -1,
+  six: number[] = [],
+  highlightTimer: ReturnType<typeof setTimeout> | undefined;
+const toast = new Toast();
+const presenceEvents = new PresenceEvents();
+const presenter = new RoomPresenter(
+  (previous, next, change) => {
+    room = next;
+    if (!previous) {
+      try {
+        const saved = JSON.parse(
+          sessionStorage.getItem(`reversix-marker-${code}`) ?? "null",
+        );
+        lastPlaced =
+          saved?.revision === next.game.revision && next.game.board[saved.index]
+            ? saved.index
+            : -1;
+      } catch {
+        lastPlaced = -1;
+      }
+    }
+    if (previous && next.game.revision > previous.game.revision) {
+      moveMarkers.set(previous.game.board.filter(Boolean).length, lastPlaced);
+      const diff = compareBoards(previous.game.board, next.game.board);
+      if (diff.placed.length === 1) lastPlaced = diff.placed[0];
+      else if (diff.placed.length > 1) lastPlaced = -1;
+      if (diff.removed.length)
+        lastPlaced =
+          moveMarkers.get(next.game.board.filter(Boolean).length) ?? -1;
+      moveMarkers.set(next.game.board.filter(Boolean).length, lastPlaced);
+    }
+    sessionStorage.setItem(
+      `reversix-marker-${code}`,
+      JSON.stringify({ revision: next.game.revision, index: lastPlaced }),
+    );
+    const events = roomEvents(previous, next);
+    toast.show(events);
+    if (events.includes("CHECK!") || events.includes("COUNTER CHECK!")) {
+      clearTimeout(highlightTimer);
+      six = next.game.checkBy
+        ? getSixLines(next.game.board, next.game.checkBy).flat()
+        : [];
+      highlightTimer = setTimeout(() => {
+        six = [];
+        render();
+      }, 1400);
+    }
+    render(change);
+  },
+  () => render(),
+);
+function render(change?: BoardChange) {
   if (room) {
     const player = room.players.black === uid ? "black" : "white";
     gameView(
@@ -32,9 +96,30 @@ function render() {
       presence.includes(
         room.players[player === "black" ? "white" : "black"] ?? "",
       ),
-      busy,
-      (i) => void action(() => submitMove(code, room!.game.revision, i)),
+      busy || presenter.locked,
+      (i) =>
+        void action(async () => {
+          const before = room!.game;
+          const result = await submitMove(code, before.revision, i);
+          history = recordMove(history, before, result.game);
+        }),
       leave,
+      {
+        change,
+        lastPlaced,
+        six,
+        canUndo:
+          room.status === "playing" && canUndo(room.game, player, history),
+        undo: () =>
+          void action(async () => {
+            const pending = history!;
+            const result = await submitUndo(code, pending);
+            const before = pending.before.slice(0, -1);
+            history = before.length
+              ? { ...pending, before, revision: result.game.revision }
+              : undefined;
+          }),
+      },
     );
   } else
     lobby(
@@ -48,7 +133,11 @@ function render() {
           await enter(value);
         }),
     );
-  if (error) {
+  const existing = root.querySelector<HTMLElement>(".game-error");
+  if (existing) {
+    existing.textContent = error;
+    existing.hidden = !error;
+  } else if (error) {
     const p = document.createElement("p");
     p.setAttribute("role", "alert");
     p.textContent = error;
@@ -56,7 +145,7 @@ function render() {
   }
 }
 async function action(fn: () => Promise<unknown>) {
-  if (busy) return;
+  if (busy || presenter.locked) return;
   busy = true;
   error = "";
   render();
@@ -70,6 +159,14 @@ async function action(fn: () => Promise<unknown>) {
   }
 }
 function leave() {
+  history = undefined;
+  moveMarkers.clear();
+  presenter.reset();
+  toast.clear();
+  presenceEvents.reset();
+  clearTimeout(highlightTimer);
+  six = [];
+  lastPlaced = -1;
   subscriptionGeneration++;
   stop?.();
   stop = undefined;
@@ -94,15 +191,29 @@ async function enter(value: string) {
         leave();
         error = next ? "YOU ARE NOT A PLAYER IN THIS ROOM" : "ROOM NOT FOUND";
       } else {
-        room = next;
         uid = id;
+        presenter.receive(next);
       }
       render();
     },
     (ids, online) => {
       if (generation === subscriptionGeneration) {
+        if (connected && !online) presenter.reset();
         presence = ids;
         connected = online;
+        if (room) {
+          const otherId =
+            room.players.black === uid
+              ? room.players.white
+              : room.players.black;
+          toast.show(
+            presenceEvents.update(
+              online,
+              ids.includes(otherId ?? ""),
+              Boolean(room.players.white),
+            ),
+          );
+        }
         render();
       }
     },

@@ -25,15 +25,15 @@ Firebase 설정 없이도 규칙 테스트와 production build가 됩니다. 이
 3. Realtime Database를 생성합니다. Firestore가 아닙니다. 데이터베이스 URL을 확인합니다.
 4. `.env.example`을 `.env`로 복사하고 프로젝트 설정 → 내 앱 → 웹 앱 SDK 설정의 값을 넣습니다.
 
-| 변수 | 웹 앱 설정 값 |
-| --- | --- |
-| `VITE_FIREBASE_API_KEY` | `apiKey` |
-| `VITE_FIREBASE_AUTH_DOMAIN` | `authDomain` |
-| `VITE_FIREBASE_DATABASE_URL` | Realtime Database URL (`databaseURL`) |
-| `VITE_FIREBASE_PROJECT_ID` | `projectId` |
-| `VITE_FIREBASE_STORAGE_BUCKET` | `storageBucket` |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId` |
-| `VITE_FIREBASE_APP_ID` | `appId` |
+| 변수                                | 웹 앱 설정 값                         |
+| ----------------------------------- | ------------------------------------- |
+| `VITE_FIREBASE_API_KEY`             | `apiKey`                              |
+| `VITE_FIREBASE_AUTH_DOMAIN`         | `authDomain`                          |
+| `VITE_FIREBASE_DATABASE_URL`        | Realtime Database URL (`databaseURL`) |
+| `VITE_FIREBASE_PROJECT_ID`          | `projectId`                           |
+| `VITE_FIREBASE_STORAGE_BUCKET`      | `storageBucket`                       |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | `messagingSenderId`                   |
+| `VITE_FIREBASE_APP_ID`              | `appId`                               |
 
 5. Realtime Database → Rules에 `database.rules.json`의 전체 내용을 적용하고 Publish합니다. 또는 로그인 후 `npx firebase deploy --only database --project 실제프로젝트ID`를 실행합니다. 공개 read/write 테스트 규칙을 사용하지 마세요.
 6. Authentication → Settings → Authorized domains에서 `localhost`, `127.0.0.1`, `nowyoullnever.github.io`를 사용 환경에 맞게 등록합니다.
@@ -56,7 +56,7 @@ Firebase 변수가 없어도 배포 자체는 가능합니다. 온라인 기능�
 ```text
 src/game/      순수 TypeScript 엔진: 보드, 8방향 뒤집기, SIX, 턴/CHECK/PASS
 src/online/    Firebase 초기화, 방 트랜잭션, 실시간 구독, 접속 상태
-src/ui/        로비, 보드, 상태 표시
+src/ui/        로비, 보드, 애니메이션, toast, 튜토리얼, 상태 표시
 src/main.ts    화면과 온라인 모듈 연결
 tests/         규칙·방 로직 및 Database Rules/동기화 테스트
 public/fonts/  사용자 ZIP에서 가져온 MaruBuri Regular OTF와 라이선스
@@ -75,9 +75,19 @@ public/fonts/  사용자 ZIP에서 가져온 MaruBuri Regular OTF와 라이선�
 - 첫 착수가 없으면 자동 PASS. 둘째 합법수가 없거나 모두 특수 금지이면 자동 생략합니다.
 - CHECK 중 PASS는 패배합니다. CHECK 승자가 없고 연속 두 PASS이면 돌 개수로 승패/무승부를 판정합니다.
 
+## 화면 및 UNDO
+
+착수는 새 돌을 약 120ms에 표시한 뒤, 뒤집힌 돌을 약 320ms 동안 Y축으로 회전시켜 보여줍니다. 이 시간에는 입력을 잠그며, Firebase로 수신한 상대 착수도 이전/다음 보드를 비교해 같은 방식으로 표시합니다. 새로고침·재접속·UNDO로 복구한 상태는 과거 애니메이션을 재생하지 않습니다. OS의 `prefers-reduced-motion` 설정에서는 즉시 반영합니다.
+
+마지막 착수에는 작은 점을 표시합니다. CHECK/CHECK 방어/Counter Check/PASS, 입장·단절·재연결은 상단의 짧은 toast로 알리고, CHECK가 발생하면 해당 SIX 연결도 잠시 강조합니다.
+
+로비의 **HOW TO PLAY**은 FLIP, TWO MOVES, SIX, CHECK, CHECK 방어, NO DOUBLE-SIX을 6단계의 HTML/CSS 미니 보드로 설명합니다. NEXT/BACK, 키보드 ←/→, ESC를 지원합니다.
+
+UNDO는 직전 **한 착수**와 그 착수의 모든 뒤집기를 되돌립니다. 클라이언트는 최대 두 개의 직전 스냅샷만 유지하고, 복구도 Firebase transaction으로 기록하므로 양쪽 화면은 같은 board와 새 revision을 받습니다. 활성화 조건은 playing 상태에서 **현재 턴의 플레이어가 방금 둔 수가 있고, 아직 같은 자신의 턴인 경우**입니다. 따라서 첫째 수 뒤에는 UNDO할 수 있지만, 둘째 수가 서버에서 턴을 넘긴 뒤에는 상대 수를 되돌리지 않도록 UNDO가 비활성화됩니다. 새로고침·재접속 후에는 이력은 복구되지 않습니다.
+
 ## 동기화 및 복구
 
-방 생성과 WHITE 선점, 각 착수는 Firebase transaction으로 처리합니다. 방 코드 충돌은 재시도합니다. 착수는 플레이어 UID와 예상 revision을 검사하므로 같은 revision을 사용한 중복 클릭은 한 번만 반영됩니다. 첫째 수 상태도 즉시 저장됩니다.
+방 생성과 WHITE 선점, 각 착수와 UNDO는 Firebase transaction으로 처리합니다. 방 코드 충돌은 재시도합니다. 착수와 UNDO는 플레이어 UID와 예상 revision을 검사하므로 같은 revision을 사용한 중복 클릭이나 오래된 UNDO는 한 번만 반영되거나 거부됩니다. 첫째 수 상태도 즉시 저장됩니다.
 
 현재 방 코드는 sessionStorage, 익명 사용자 ID는 Firebase Auth에 저장되어 같은 탭 새로고침으로 복구합니다. 저장소를 지우거나 시크릿 창을 닫으면 기존 자리 복구가 불가능할 수 있습니다. 같은 브라우저 프로필의 탭은 같은 사용자이므로 두 플레이어 테스트는 **서로 다른 브라우저 또는 일반 창 + 시크릿 창**을 사용합니다.
 
@@ -95,7 +105,7 @@ npm run test:online
 
 에뮬레이터는 `demo-reversix`라는 Firebase 전용 데모 프로젝트 ID를 사용합니다. production 환경 변수에 넣는 값이 아니며 실제 클라우드 프로젝트로 요청하지 않습니다. 첫 실행은 에뮬레이터 다운로드가 필요합니다. Windows에서는 실행 스크립트가 Java 임시 소켓에 짧은 작업 경로를 지정하여 공백/긴 경로로 인한 루프백 연결 오류를 피합니다.
 
-수동 최종 확인: 두 브라우저로 생성/입장 → BLACK 1수 → WHITE 2수 → 동일 보드 확인 → 새로고침 복구 → 한쪽 창 종료 시 단절 표시. 실제 Firebase 프로젝트를 연결한 뒤에도 이 절차를 확인하세요.
+수동 최종 확인: 두 브라우저로 생성/입장 → BLACK 1수 → WHITE 2수 → 동일 보드와 flip 확인 → 첫째 수 UNDO → 양쪽 복구 확인 → 새로고침 복구 → 한쪽 창 종료 시 단절 표시. 실제 Firebase 프로젝트를 연결한 뒤에도 이 절차를 확인하세요.
 
 ## 규칙 해석과 주의점
 

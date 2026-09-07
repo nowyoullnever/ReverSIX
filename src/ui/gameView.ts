@@ -1,6 +1,10 @@
 import type { Player } from "../game/types";
 import type { Room } from "../online/rooms";
-import { boardView } from "./boardView";
+import { boardView, updateBoard, type BoardPresentation } from "./boardView";
+export interface GamePresentation extends BoardPresentation {
+  undo?: () => void;
+  canUndo?: boolean;
+}
 export function gameView(
   root: HTMLElement,
   room: Room,
@@ -11,15 +15,19 @@ export function gameView(
   busy: boolean,
   move: (i: number) => void,
   leave: () => void,
+  presentation: GamePresentation = {},
 ) {
   const s = room.game;
-  root.innerHTML = "<h1>REVERSIX!</h1>";
-  const header = document.createElement("div");
-  header.className = "room";
-  const label = document.createElement("span");
-  label.textContent = `ROOM ${code}`;
-  const copy = document.createElement("button");
-  copy.textContent = "COPY";
+  if (root.dataset.room !== code || !root.querySelector(".board")) {
+    root.dataset.room = code;
+    root.innerHTML =
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 role="status"></h2><p class="check" hidden></p><div class="board-slot"></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+    root
+      .querySelector(".board-slot")!
+      .append(boardView(s, false, move, presentation));
+  }
+  root.querySelector(".room span")!.textContent = `ROOM ${code}`;
+  const copy = root.querySelector<HTMLButtonElement>(".copy")!;
   copy.onclick = () =>
     void navigator.clipboard
       .writeText(code)
@@ -29,11 +37,7 @@ export function gameView(
       .catch(() => {
         copy.textContent = "SELECT CODE";
       });
-  header.append(label, copy);
-  root.append(header);
-  const status = document.createElement("h2");
-  status.setAttribute("role", "status");
-  status.textContent =
+  root.querySelector("h2")!.textContent =
     room.status === "waiting"
       ? "WAITING FOR PLAYER..."
       : s.winner
@@ -43,38 +47,34 @@ export function gameView(
             ? "YOU WIN"
             : "YOU LOSE"
         : `${s.currentPlayer.toUpperCase()}'S TURN — MOVE ${s.moveNumberInTurn} / ${s.turn === 0 ? 1 : 2}`;
-  root.append(status);
-  if (s.checkBy && !s.winner) {
-    const check = document.createElement("p");
-    check.className = "check";
-    check.textContent = `CHECK! ${s.checkBy === player ? "OPPONENT IS IN CHECK" : "YOU ARE IN CHECK"}`;
-    root.append(check);
-  }
-  root.append(
-    boardView(
-      s,
-      connected &&
-        opponentOnline &&
-        !busy &&
-        room.status === "playing" &&
-        s.currentPlayer === player,
-      move,
-    ),
+  const check = root.querySelector<HTMLElement>(".check")!;
+  check.hidden = !s.checkBy || Boolean(s.winner);
+  check.textContent = s.checkBy
+    ? `CHECK! ${s.checkBy === player ? "OPPONENT IS IN CHECK" : "YOU ARE IN CHECK"}`
+    : "";
+  updateBoard(
+    root.querySelector<HTMLElement>(".board")!,
+    s,
+    connected &&
+      opponentOnline &&
+      !busy &&
+      room.status === "playing" &&
+      s.currentPlayer === player,
+    move,
+    presentation,
   );
-  const you = document.createElement("p");
-  you.textContent = `YOU ARE ${player.toUpperCase()} · BLACK ${s.board.filter((c) => c === "black").length} / WHITE ${s.board.filter((c) => c === "white").length}`;
-  root.append(you);
-  const notice = document.createElement("p");
-  notice.className = "notice";
-  notice.setAttribute("role", "status");
-  notice.textContent = !connected
+  root.querySelector(".you")!.textContent =
+    `YOU ARE ${player.toUpperCase()} · BLACK ${s.board.filter((c) => c === "black").length} / WHITE ${s.board.filter((c) => c === "white").length}`;
+  root.querySelector(".notice")!.textContent = !connected
     ? "CONNECTION LOST — RECONNECTING..."
     : room.players.white && !opponentOnline
       ? "OPPONENT DISCONNECTED"
       : s.events.join(" · ");
-  root.append(notice);
-  const back = document.createElement("button");
-  back.textContent = "BACK TO LOBBY";
-  back.onclick = leave;
-  root.append(back);
+  root.querySelector<HTMLButtonElement>(".back")!.onclick = leave;
+  const undo = root.querySelector<HTMLButtonElement>(".undo")!;
+  undo.disabled =
+    !presentation.canUndo || busy || !connected || !opponentOnline;
+  undo.onclick = () => {
+    if (!undo.disabled) presentation.undo?.();
+  };
 }

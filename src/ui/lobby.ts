@@ -1,3 +1,4 @@
+import { openTutorial } from "./tutorial";
 export function lobby(
   root: HTMLElement,
   configured: boolean,
@@ -23,4 +24,13 @@ export function lobby(
       "ONLINE PLAY IS NOT CONFIGURED. The host must finish Firebase setup.";
     root.append(note);
   }
+  const help = document.createElement("button");
+  help.className = "how-to-play";
+  help.textContent = "HOW TO PLAY";
+  help.onclick = () => openTutorial();
+  root.querySelector(".lobby")!.append(help);
+  const footer = document.createElement("p");
+  footer.className = "note";
+  footer.textContent = "REVERSI × SIX";
+  root.append(footer);
 }

@@ -112,6 +112,8 @@ it("without Firebase, lobby explains setup and disables online controls", () => 
   const root = document.createElement("main");
   lobby(root, false, false, vi.fn(), vi.fn());
   expect(root.textContent).toContain("ONLINE PLAY IS NOT CONFIGURED");
-  expect(root.querySelectorAll("button:not(:disabled)")).toHaveLength(0);
+  expect(
+    root.querySelectorAll("#create:not(:disabled), form button:not(:disabled)"),
+  ).toHaveLength(0);
   expect(root.textContent).not.toContain("COMPUTER");
 });
