@@ -278,4 +278,5 @@ it("without Firebase, lobby explains setup and disables online controls", () => 
     root.querySelectorAll("#create:not(:disabled), form button:not(:disabled)"),
   ).toHaveLength(0);
   expect(root.textContent).not.toContain("COMPUTER");
+  expect(root.textContent).not.toContain("REVERSI × SIX");
 });

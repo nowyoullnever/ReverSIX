@@ -47,8 +47,4 @@ export function lobby(
     );
     root.querySelector(".lobby")!.append(status);
   }
-  const footer = document.createElement("p");
-  footer.className = "note";
-  footer.textContent = "REVERSI × SIX";
-  root.append(footer);
 }
