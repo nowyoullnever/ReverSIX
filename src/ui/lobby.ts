@@ -1,5 +1,7 @@
 import { openTutorial } from "./tutorial";
 import { setStatusText } from "./motion";
+import { t } from "../i18n/i18n";
+import { openSettings } from "./settings";
 export type LobbyActivity = "creating" | "joining" | "reconnecting" | undefined;
 export function lobby(
   root: HTMLElement,
@@ -8,8 +10,11 @@ export function lobby(
   create: () => void,
   join: (code: string) => void,
   activity?: LobbyActivity,
+  sound = true,
+  setSound: (value:boolean) => void = () => {},
+  changed: () => void = () => {},
 ) {
-  root.innerHTML = `<h1>REVERSIX!</h1><section class="lobby"><button id="create">CREATE PRIVATE GAME</button><form><label for="code">JOIN PRIVATE GAME</label><div class="join-row"><input id="code" name="code" aria-label="Room code" placeholder="6-LETTER CODE" minlength="6" maxlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" autocomplete="off" autocapitalize="characters" spellcheck="false" required><button type="submit">JOIN</button></div></form></section>`;
+  root.innerHTML = `<h1>REVERSIX!</h1><section class="lobby"><button id="create">${t("lobby.create")}</button><form><label for="code">${t("lobby.joinLabel")}</label><div class="join-row"><input id="code" name="code" aria-label="${t("lobby.code")}" placeholder="${t("lobby.code")}" minlength="6" maxlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" autocomplete="off" autocapitalize="characters" spellcheck="false" required><button type="submit">${t("lobby.join")}</button></div></form></section>`;
   root.querySelector<HTMLButtonElement>("#create")!.onclick = create;
   root.querySelector("form")!.onsubmit = (e) => {
     e.preventDefault();
@@ -24,14 +29,15 @@ export function lobby(
     const note = document.createElement("p");
     note.className = "note";
     note.textContent =
-      "ONLINE PLAY IS NOT CONFIGURED. The host must finish Firebase setup.";
+      t("lobby.unconfigured");
     root.append(note);
   }
   const help = document.createElement("button");
   help.className = "how-to-play";
-  help.textContent = "HOW TO PLAY";
+  help.textContent = t("lobby.how");
   help.onclick = () => openTutorial();
   root.querySelector(".lobby")!.append(help);
+  const settings=document.createElement("button");settings.className="text-button";settings.textContent=t("lobby.settings");settings.onclick=()=>openSettings(sound,setSound,changed);root.querySelector(".lobby")!.append(settings);
   if (activity) {
     const status = document.createElement("p");
     status.className = "lobby-status";
@@ -39,10 +45,10 @@ export function lobby(
     setStatusText(
       status,
       activity === "creating"
-        ? "CREATING ROOM"
+        ? t("lobby.creating")
         : activity === "joining"
-          ? "JOINING ROOM"
-          : "RECONNECTING TO ROOM",
+          ? t("lobby.joining")
+          : t("lobby.reconnecting"),
       true,
     );
     root.querySelector(".lobby")!.append(status);

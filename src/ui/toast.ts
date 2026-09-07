@@ -1,3 +1,4 @@
+import { localizeEvent } from "../i18n/i18n";
 export class Toast {
   readonly element = document.createElement("div");
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -16,7 +17,7 @@ export class Toast {
   }
   private next() {
     const message = this.queue.shift();
-    this.element.textContent = message ?? "";
+    this.element.textContent = message ? localizeEvent(message) : "";
     this.element.hidden = !message;
     this.element.className = `toast ${toastKind(message)}`;
     if (message) {

@@ -3,6 +3,7 @@ import { getSixLines } from "../game/six";
 import type { Room } from "../online/rooms";
 import { boardView, updateBoard, type BoardPresentation } from "./boardView";
 import { replayMotion, setStatusText } from "./motion";
+import { t } from "../i18n/i18n";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
@@ -39,30 +40,31 @@ export function gameView(
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
   }
-  root.querySelector(".room span")!.textContent = `ROOM ${code}`;
+  root.querySelector(".room span")!.textContent = t("game.room", { code });
   const copy = root.querySelector<HTMLButtonElement>(".copy")!;
+  if (!copyTimers.has(copy)) copy.textContent = t("game.copy");
   copy.onclick = () =>
     void navigator.clipboard
       .writeText(code)
       .then(() => {
-        showCopyFeedback(copy, "COPIED");
+        showCopyFeedback(copy, t("game.copied"));
       })
       .catch(() => {
-        showCopyFeedback(copy, "SELECT CODE");
+        showCopyFeedback(copy, t("game.select"));
       });
   const status = root.querySelector<HTMLElement>("h2")!;
   const resultText = s.winner
     ? s.winner === "draw"
-      ? "DRAW"
+      ? t("game.draw")
       : s.winner === player
-        ? "YOU WIN"
-        : "YOU LOSE"
+        ? t("game.win")
+        : t("game.lose")
     : undefined;
   setStatusText(
     status,
     room.status === "waiting"
-      ? "WAITING FOR PLAYER"
-      : resultText ?? `${s.currentPlayer.toUpperCase()}'S TURN — MOVE ${s.moveNumberInTurn} / ${s.turn === 0 ? 1 : 2}`,
+      ? t("game.waiting")
+      : resultText ?? t("game.turn", { color:t(`game.${s.currentPlayer}`), move:s.moveNumberInTurn, total:s.turn === 0 ? 1 : 2 }),
     room.status === "waiting",
   );
   const previousTurn = lastTurn.get(root);
@@ -73,14 +75,14 @@ export function gameView(
   const check = root.querySelector<HTMLElement>(".check")!;
   check.hidden = !s.checkBy || Boolean(s.winner);
   check.textContent = s.checkBy
-    ? `CHECK! ${s.checkBy === player ? "OPPONENT IS IN CHECK" : "YOU ARE IN CHECK"}`
+    ? s.checkBy === player ? t("game.check") : t("game.defend")
     : "";
   const detail = root.querySelector<HTMLElement>(".result-detail")!;
   detail.hidden = !defenseFailed;
   detail.textContent = defenseFailed
     ? s.winner === player
-      ? "SIX SURVIVED"
-      : "SIX REMAINED"
+      ? t("game.survived")
+      : t("game.remained")
     : "";
   detail.classList.toggle("result-enter", Boolean(defenseFailed && presentation.defeatSequence));
   updateBoard(
@@ -95,27 +97,30 @@ export function gameView(
     finalPresentation,
   );
   root.querySelector(".you")!.textContent =
-    `YOU ARE ${player.toUpperCase()} · BLACK ${s.board.filter((c) => c === "black").length} / WHITE ${s.board.filter((c) => c === "white").length}`;
+    t("game.you", { color:t(`game.${player}`), black:s.board.filter((c) => c === "black").length, white:s.board.filter((c) => c === "white").length });
   const notice = root.querySelector<HTMLElement>(".notice")!;
   const noticeText = !connected
-    ? "CONNECTION LOST — RECONNECTING"
+    ? t("game.connection")
     : room.players.white && !opponentOnline
-      ? "OPPONENT DISCONNECTED"
+      ? t("game.disconnected")
       : s.events.join(" · ");
   const previousNotice = notice.dataset.message;
   setStatusText(notice, noticeText, !connected);
   notice.dataset.message = noticeText;
-  if (noticeText === "OPPONENT DISCONNECTED" && previousNotice !== noticeText)
+  if (room.players.white && !opponentOnline && connected && previousNotice !== noticeText)
     replayMotion(notice, "notice-enter");
-  root.querySelector<HTMLButtonElement>(".back")!.onclick = leave;
+  const back = root.querySelector<HTMLButtonElement>(".back")!;
+  back.textContent = t("game.back");
+  back.onclick = leave;
   const undo = root.querySelector<HTMLButtonElement>(".undo")!;
+  undo.textContent = t("game.undo");
   undo.disabled =
     !presentation.canUndo || busy || !connected || !opponentOnline;
   undo.onclick = () => {
     if (!undo.disabled) presentation.undo?.();
   };
   const sound = root.querySelector<HTMLButtonElement>(".sound")!;
-  sound.textContent = presentation.soundEnabled === false ? "SOUND OFF" : "SOUND ON";
+  sound.textContent = presentation.soundEnabled === false ? t("game.soundOff") : t("game.soundOn");
   sound.setAttribute("aria-pressed", `${presentation.soundEnabled !== false}`);
   sound.onclick = () => presentation.toggleSound?.();
 }
@@ -127,7 +132,7 @@ function showCopyFeedback(copy: HTMLButtonElement, label: string) {
   copyTimers.set(
     copy,
     setTimeout(() => {
-      copy.textContent = "COPY";
+      copy.textContent = t("game.copy");
       copy.classList.remove("copy-feedback");
     }, 1200),
   );

@@ -1,6 +1,7 @@
 import { getMoveOptions } from "../game/rules";
 import type { GameState } from "../game/types";
 import type { BoardChange } from "./transitions";
+import { t } from "../i18n/i18n";
 const revisions = new WeakMap<HTMLElement, number>();
 export interface BoardPresentation {
   change?: BoardChange;
@@ -111,7 +112,7 @@ export function boardView(
 ): HTMLElement {
   const board = document.createElement("div");
   board.className = "board";
-  board.setAttribute("aria-label", "10 by 10 game board");
+  board.setAttribute("aria-label", t("board.label"));
   for (let i = 0; i < 100; i++) {
     const cell = document.createElement("button");
     cell.className = "cell";

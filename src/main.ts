@@ -24,6 +24,7 @@ import {
 } from "./ui/transitions";
 import { canUndo, recordMove, type MoveHistory } from "./game/history";
 import { AudioManager } from "./audio/audio";
+import { localizeError, setLocale } from "./i18n/i18n";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -43,6 +44,7 @@ let lastPlaced = -1,
 let defeatSequenceRevision = -1;
 const toast = new Toast();
 const audio = new AudioManager();
+setLocale((localStorage.getItem("reversix-language") as "ko" | "en") || (navigator.language.startsWith("ko") ? "ko" : "en"));
 document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
@@ -154,10 +156,13 @@ function render(change?: BoardChange) {
           await enter(value);
         }, "joining")),
       lobbyActivity,
+      audio.isEnabled(),
+      (enabled) => { audio.setEnabled(enabled); render(); },
+      render,
     );
   const existing = root.querySelector<HTMLElement>(".game-error");
   if (existing) {
-    existing.textContent = error;
+    existing.textContent = localizeError(error);
     existing.hidden = !error;
     if (error) existing.classList.add("text-fade-in");
     else existing.classList.remove("text-fade-in");
@@ -165,7 +170,7 @@ function render(change?: BoardChange) {
     const p = document.createElement("p");
     p.setAttribute("role", "alert");
     p.className = "text-fade-in";
-    p.textContent = error;
+    p.textContent = localizeError(error);
     root.append(p);
   }
 }
