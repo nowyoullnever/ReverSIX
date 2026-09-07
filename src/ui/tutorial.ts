@@ -165,7 +165,7 @@ export function openTutorial(onClose: () => void = () => {}) {
     close();
   });
   dialog.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowRight" && index < 5) {
+    if (event.key === "ArrowRight" && index < tutorialSteps.length - 1) {
       event.preventDefault();
       index++;
       render();
