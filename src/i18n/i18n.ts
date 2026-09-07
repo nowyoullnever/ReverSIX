@@ -3,7 +3,7 @@ const KEY = "reversix-language";
 let locale: Locale = readLocale();
 function readLocale(): Locale {
   try { const saved = localStorage.getItem(KEY); if (saved === "ko" || saved === "en") return saved; } catch {}
-  return navigator.language.toLowerCase().startsWith("ko") ? "ko" : "en";
+  return "en";
 }
 export function getLocale() { return locale; }
 export function setLocale(next: Locale) {

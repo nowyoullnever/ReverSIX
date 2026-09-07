@@ -24,7 +24,7 @@ import {
 } from "./ui/transitions";
 import { canUndo, recordMove, type MoveHistory } from "./game/history";
 import { AudioManager } from "./audio/audio";
-import { localizeError, setLocale } from "./i18n/i18n";
+import { getLocale, localizeError, setLocale } from "./i18n/i18n";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -43,7 +43,7 @@ let lastPlaced = -1,
 let defeatSequenceRevision = -1;
 const toast = new Toast();
 const audio = new AudioManager();
-setLocale((localStorage.getItem("reversix-language") as "ko" | "en") || (navigator.language.startsWith("ko") ? "ko" : "en"));
+setLocale(getLocale());
 document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
