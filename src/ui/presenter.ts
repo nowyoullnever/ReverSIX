@@ -1,6 +1,6 @@
 import type { Room } from "../online/rooms";
 import { moveTransition, type BoardChange } from "./transitions";
-export const MOVE_ANIMATION_MS = 620;
+export const MOVE_ANIMATION_MS = 440;
 // One ordered presentation queue serves local and remote Firebase updates.
 // It never writes game data and has no Firebase subscriptions of its own.
 export class RoomPresenter {

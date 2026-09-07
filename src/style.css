@@ -133,7 +133,7 @@ input {
   animation: stone-enter 120ms ease-out both;
 }
 .stone-flip {
-  animation: stone-flip 320ms ease-in-out calc(120ms + var(--flip-delay, 0ms)) both;
+  animation: stone-flip 320ms ease-in-out 120ms both;
 }
 @keyframes stone-enter {
   from {
@@ -184,8 +184,8 @@ input {
 }
 .six-highlight .stone-flip {
   animation:
-    stone-flip 320ms ease-in-out calc(120ms + var(--flip-delay, 0ms)) both,
-    six-pulse 600ms ease-in-out calc(440ms + var(--flip-delay, 0ms)) 2;
+    stone-flip 320ms ease-in-out 120ms both,
+    six-pulse 600ms ease-in-out 440ms 2;
 }
 .six-lines {
   position: absolute;
