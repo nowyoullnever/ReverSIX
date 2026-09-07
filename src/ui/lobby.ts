@@ -36,8 +36,8 @@ export function lobby(
   help.className = "how-to-play";
   help.textContent = t("lobby.how");
   help.onclick = () => openTutorial();
-  root.querySelector(".lobby")!.append(help);
-  const settings=document.createElement("button");settings.className="text-button";settings.textContent=t("lobby.settings");settings.onclick=()=>openSettings(sound,setSound,changed);root.querySelector(".lobby")!.append(settings);
+  const secondary=document.createElement("div");secondary.className="lobby-secondary-actions";secondary.append(help);
+  const settings=document.createElement("button");settings.className="settings-launch";settings.textContent=t("lobby.settings");settings.onclick=()=>openSettings(sound,setSound,changed);secondary.append(settings);root.querySelector(".lobby")!.append(secondary);
   if (activity) {
     const status = document.createElement("p");
     status.className = "lobby-status";
