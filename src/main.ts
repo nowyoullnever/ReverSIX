@@ -4,11 +4,13 @@ import {
   CODE_PATTERN,
   createRoom,
   joinRoom,
+  requestRematch,
   submitMove,
+  submitTimeout,
   submitUndo,
   type Room,
 } from "./online/rooms";
-import { watchRoom } from "./online/sync";
+import { watchRoom, watchServerOffset } from "./online/sync";
 import { lobby } from "./ui/lobby";
 import type { LobbyActivity } from "./ui/lobby";
 import { gameView } from "./ui/gameView";
@@ -24,13 +26,10 @@ import {
   moveTransition,
   type BoardChange,
 } from "./ui/transitions";
-import { canUndo, recordMove, type MoveHistory } from "./game/history";
 import { AudioManager } from "./audio/audio";
 import { getLocale, localizeError, setLocale } from "./i18n/i18n";
-import { sendQuickChat, watchQuickChat, type QuickChatMessage } from "./online/quickChat";
-import type { ChatPresetId } from "./online/chatPresets";
-import { isQuickChatCoolingDown, QUICK_CHAT_COOLDOWN_MS } from "./online/chatCooldown";
 import { LocalGameSession } from "./local/localGame";
+import { mayUndo, remainingAt, type GameSettings } from "./game/session";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -42,19 +41,12 @@ let presence: string[] = [],
   stop: (() => void) | undefined,
   error = "";
 let subscriptionGeneration = 0;
-let history: MoveHistory | undefined;
 let localGame: LocalGameSession | null = null;
 let localLocked = false;
 let localTimer: ReturnType<typeof setTimeout> | undefined;
-let quickChatMessages: QuickChatMessage[] = [];
-let quickChatError = "";
-let quickChatStop: (() => void) | undefined;
-let quickChatRoom = "";
-let quickChatGeneration = 0;
-let quickChatCooldownUntil = 0;
-let quickChatTimer: ReturnType<typeof setTimeout> | undefined;
-let chatOpen = false;
-const desktopChat = window.matchMedia("(min-width: 900px)");
+let serverOffset=0;
+let stopOffset:(()=>void)|undefined;
+let timeoutPending=false;
 const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
   six: number[] = [];
@@ -81,6 +73,7 @@ const presenter = new RoomPresenter(
       }
     }
     if (previous && next.game.revision > previous.game.revision) {
+      if((previous.rematch?.generation??0)!==(next.rematch?.generation??0)){moveMarkers.clear();lastPlaced=-1;six=[];defeatSequenceRevision=-1}
       moveMarkers.set(previous.game.board.filter(Boolean).length, lastPlaced);
       const diff = compareBoards(previous.game.board, next.game.board);
       if (diff.placed.length === 1) lastPlaced = diff.placed[0];
@@ -126,6 +119,10 @@ function render(change?: BoardChange) {
         defeatSequence: defeatSequenceRevision === localGame.game.revision,
         canUndo: localGame.canUndo(),
         undo: undoLocal,
+        rematch: rematchLocal,
+        clock: localGame.clock,
+        settings: localGame.settings,
+        now: Date.now(),
       },
     );
   } else if (room) {
@@ -143,8 +140,7 @@ function render(change?: BoardChange) {
       (i) =>
         void (audio.unlock(), action(async () => {
           const before = room!.game;
-          const result = await submitMove(code, before.revision, i);
-          history = recordMove(history, before, result.game);
+          await submitMove(code, before.revision, i, serverNow());
         })),
       leave,
       {
@@ -153,32 +149,13 @@ function render(change?: BoardChange) {
         six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
         canUndo:
-          room.status === "playing" && canUndo(room.game, player, history),
+          room.status === "playing" && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
         undo: () =>
           void action(async () => {
-            const pending = history!;
-            const result = await submitUndo(code, pending);
-            const before = pending.before.slice(0, -1);
-            history = before.length
-              ? { ...pending, before, revision: result.game.revision }
-              : undefined;
+            await submitUndo(code, room!.game.revision, serverNow());
           }),
-        quickChat: {
-          enabled: desktopChat.matches,
-          open: chatOpen,
-          messages: quickChatMessages,
-          disabled: isQuickChatCoolingDown(Date.now(), quickChatCooldownUntil),
-          error: quickChatError,
-          send: (presetId) => void sendPreset(presetId),
-          show: () => {
-            chatOpen = true;
-            render();
-          },
-          close: () => {
-            chatOpen = false;
-            render();
-          },
-        },
+        rematch: () => void action(()=>requestRematch(code,serverNow())),
+        now: serverNow(),
       },
     );
   } else
@@ -187,7 +164,7 @@ function render(change?: BoardChange) {
       firebaseConfigured,
       busy,
       startLocalGame,
-      () => void (audio.unlock(), action(async () => enter(await createRoom()), "creating")),
+      (settings) => void (audio.unlock(), action(async () => enter(await createRoom(settings)), "creating")),
       (value) =>
         void (audio.unlock(), action(async () => {
           await joinRoom(value);
@@ -212,9 +189,8 @@ function render(change?: BoardChange) {
     root.append(p);
   }
 }
-function startLocalGame() {
-  localGame = new LocalGameSession();
-  history = undefined;
+function startLocalGame(settings: GameSettings) {
+  localGame = new LocalGameSession(settings);
   lastPlaced = -1;
   six = [];
   defeatSequenceRevision = -1;
@@ -223,10 +199,13 @@ function startLocalGame() {
   sessionStorage.removeItem("reversix-room");
   render();
 }
+function rematchLocal(){if(!localGame?.game.winner)return;localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render()}
 function localMove(index: number) {
   if (!localGame || localLocked || localGame.game.winner) return;
   void audio.unlock();
-  const { before, after, change } = localGame.play(index);
+  let result;
+  try{result=localGame.play(index)}catch(e){error=(e as Error).message;render();return}
+  const { before, after, change } = result;
   audio.playChange(change);
   toast.show(gameEvents(before, after));
   six = after.checkBy && !after.winner
@@ -289,7 +268,6 @@ async function action(fn: () => Promise<unknown>, activity?: LobbyActivity) {
   }
 }
 function leave() {
-  history = undefined;
   moveMarkers.clear();
   presenter.reset();
   toast.clear();
@@ -298,7 +276,7 @@ function leave() {
   defeatSequenceRevision = -1;
   lastPlaced = -1;
   subscriptionGeneration++;
-  stopQuickChat();
+  stopOffset?.(); stopOffset=undefined;
   stop?.();
   stop = undefined;
   room = null;
@@ -312,8 +290,10 @@ function leave() {
 async function enter(value: string) {
   const generation = ++subscriptionGeneration;
   stop?.();
+  stopOffset?.();
   code = value;
   sessionStorage.setItem("reversix-room", code);
+  stopOffset=await watchServerOffset(offset=>{serverOffset=offset});
   const unsubscribe = await watchRoom(
     code,
     (next, id) => {
@@ -324,7 +304,6 @@ async function enter(value: string) {
       } else {
         uid = id;
         presenter.receive(next);
-        reconcileQuickChat();
       }
       render();
     },
@@ -359,80 +338,15 @@ async function enter(value: string) {
   if (generation === subscriptionGeneration) stop = unsubscribe;
   else unsubscribe();
 }
-function stopQuickChat() {
-  quickChatGeneration++;
-  quickChatStop?.();
-  quickChatStop = undefined;
-  quickChatRoom = "";
-  quickChatMessages = [];
-  quickChatError = "";
-  clearTimeout(quickChatTimer);
-  quickChatTimer = undefined;
-  quickChatCooldownUntil = 0;
-  chatOpen = false;
-}
-function reconcileQuickChat() {
-  if (!room || !code || !desktopChat.matches) {
-    if (quickChatStop || quickChatRoom) stopQuickChat();
-    return;
-  }
-  if (quickChatRoom === code) return;
-  const generation = ++quickChatGeneration;
-  quickChatStop?.();
-  quickChatStop = undefined;
-  quickChatRoom = code;
-  quickChatMessages = [];
-  quickChatError = "";
-  void watchQuickChat(
-    code,
-    (messages) => {
-      if (generation !== quickChatGeneration) return;
-      quickChatMessages = messages;
-      render();
-    },
-    (nextError) => {
-      if (generation !== quickChatGeneration) return;
-      quickChatError = localizeError(nextError.message);
-      render();
-    },
-  ).then((unsubscribe) => {
-    if (generation === quickChatGeneration) quickChatStop = unsubscribe;
-    else unsubscribe();
-  }).catch((nextError: Error) => {
-    if (generation === quickChatGeneration) {
-      quickChatError = localizeError(nextError.message);
-      render();
-    }
-  });
-}
-async function sendPreset(presetId: ChatPresetId) {
-  if (
-    !room ||
-    !code ||
-    !desktopChat.matches ||
-    isQuickChatCoolingDown(Date.now(), quickChatCooldownUntil)
-  )
-    return;
-  quickChatCooldownUntil = Date.now() + QUICK_CHAT_COOLDOWN_MS;
-  quickChatError = "";
-  clearTimeout(quickChatTimer);
-  quickChatTimer = setTimeout(() => {
-    quickChatCooldownUntil = 0;
-    render();
-  }, QUICK_CHAT_COOLDOWN_MS);
-  render();
-  try {
-    await sendQuickChat(code, presetId);
-  } catch (nextError) {
-    quickChatError = localizeError((nextError as Error).message);
+function serverNow(){return Date.now()+serverOffset}
+setInterval(()=>{
+  if(localGame){if(localGame.tick()) {defeatSequenceRevision=-1;toast.show(localGame.game.events)} render();return}
+  if(room?.status==="playing"&&room.clock!.running){
+    const left=remainingAt(room.clock!,room.game.currentPlayer,serverNow());
+    if(left<=0&&!timeoutPending){timeoutPending=true;void submitTimeout(code,serverNow()).catch(()=>{}).finally(()=>timeoutPending=false)}
     render();
   }
-}
-desktopChat.addEventListener("change", () => {
-  if (!desktopChat.matches) chatOpen = false;
-  reconcileQuickChat();
-  render();
-});
+},200);
 render();
 const saved = sessionStorage.getItem("reversix-room");
 if (firebaseConfigured && saved && CODE_PATTERN.test(saved))

@@ -1,14 +1,15 @@
 import type { Player } from "../game/types";
 import { getSixLines } from "../game/six";
-import type { Room } from "../online/rooms";
+import { normalizeRoom, type Room } from "../online/rooms";
 import { boardView, updateBoard, type BoardPresentation } from "./boardView";
 import { replayMotion, setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
-import { quickChatView, type QuickChatPresentation } from "./quickChatView";
+import { settingsSummary, updateClocks } from "./clockView";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
-  quickChat?: QuickChatPresentation;
+  rematch?: () => void;
+  now?: number;
 }
 const lastTurn = new WeakMap<HTMLElement, Player>();
 const copyTimers = new WeakMap<HTMLButtonElement, ReturnType<typeof setTimeout>>();
@@ -24,6 +25,7 @@ export function gameView(
   leave: () => void,
   presentation: GamePresentation = {},
 ) {
+  room=normalizeRoom(room);
   const s = room.game;
   const winningPlayer =
     s.winner === "black" || s.winner === "white" ? s.winner : undefined;
@@ -35,12 +37,15 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout"><div class="board-wrap"><div class="board-slot"></div><button class="chat-toggle" type="button" aria-controls="quick-chat-panel" aria-expanded="false"></button></div><div class="quick-chat-slot" id="quick-chat-panel" hidden></div></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
       .append(boardView(s, false, move, finalPresentation));
   }
   root.querySelector(".room span")!.textContent = t("game.room", { code });
+  root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(room.settings!);
+  const opponent:Player=player === "black" ? "white" : "black";
+  updateClocks(root,room.clock!,s.currentPlayer,presentation.now??Date.now(),player,opponent);
   const copy = root.querySelector<HTMLButtonElement>(".copy")!;
   if (!copyTimers.has(copy)) copy.textContent = t("game.copy");
   copy.onclick = () =>
@@ -53,12 +58,13 @@ export function gameView(
         showCopyFeedback(copy, t("game.select"));
       });
   const status = root.querySelector<HTMLElement>("h2")!;
+  const timeoutEvent=s.events.find(event=>event.endsWith(" TIMEOUT"));
   const resultText = s.winner
     ? s.winner === "draw"
       ? t("game.draw")
       : s.winner === player
-        ? t("game.win")
-        : t("game.lose")
+        ? `${timeoutEvent ? t(`game.${timeoutEvent.startsWith("BLACK")?"blackTimeout":"whiteTimeout"}`)+" · " : ""}${t("game.win")}`
+        : `${timeoutEvent ? t(`game.${timeoutEvent.startsWith("BLACK")?"blackTimeout":"whiteTimeout"}`)+" · " : ""}${t("game.lose")}`
     : undefined;
   setStatusText(
     status,
@@ -96,27 +102,6 @@ export function gameView(
     move,
     finalPresentation,
   );
-  const chat = presentation.quickChat;
-  const layout = root.querySelector<HTMLElement>(".game-layout")!;
-  layout.classList.toggle("chat-open", Boolean(chat?.enabled && chat.open));
-  const chatToggle = root.querySelector<HTMLButtonElement>(".chat-toggle")!;
-  chatToggle.textContent = t("chat.title");
-  chatToggle.hidden = !chat?.enabled || chat.open;
-  chatToggle.setAttribute("aria-expanded", String(Boolean(chat?.open)));
-  chatToggle.onclick = () => chat?.show();
-  quickChatView(
-    root.querySelector<HTMLElement>(".quick-chat-slot")!,
-    room.players[player]!,
-    chat ?? {
-      enabled: false,
-      open: false,
-      messages: [],
-      disabled: true,
-      send: () => {},
-      show: () => {},
-      close: () => {},
-    },
-  );
   root.querySelector(".you")!.textContent =
     t("game.you", { color:t(`game.${player}`), black:s.board.filter((c) => c === "black").length, white:s.board.filter((c) => c === "white").length });
   const notice = root.querySelector<HTMLElement>(".notice")!;
@@ -133,6 +118,10 @@ export function gameView(
   const back = root.querySelector<HTMLButtonElement>(".back")!;
   back.textContent = t("game.back");
   back.onclick = leave;
+  const rematch=root.querySelector<HTMLButtonElement>(".rematch")!;
+  rematch.hidden=!s.winner; rematch.disabled=Boolean(room.rematch![player]);
+  rematch.textContent=room.rematch![player]?t("game.rematchWaiting"):t("game.rematch");
+  rematch.onclick=()=>presentation.rematch?.();
   const undo = root.querySelector<HTMLButtonElement>(".undo")!;
   undo.textContent = t("game.undo");
   undo.disabled =

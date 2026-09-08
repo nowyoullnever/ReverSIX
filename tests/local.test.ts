@@ -47,9 +47,9 @@ it("undoes one placement at a time and restores the complete local snapshot", ()
   local.play(getMoveOptions(local.game).legal[0]);
   expect(local.game.currentPlayer).toBe("black");
   local.undo();
-  expect(local.game).toEqual(afterFirst);
+  expect({ ...local.game, revision: afterFirst.revision }).toEqual(afterFirst);
   local.undo();
-  expect(local.game).toEqual(beforeWhite);
+  expect({ ...local.game, revision: beforeWhite.revision }).toEqual(beforeWhite);
   expect(local.lastPlaced).toBe(previousMarker);
 });
 
@@ -133,6 +133,7 @@ it("shows only NEW GAME on Home and opens the three-option menu", () => {
   expect(dialog.textContent).toContain("CREATE PRIVATE GAME");
   expect(dialog.textContent).toContain("JOIN PRIVATE GAME");
   dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();
+  dialog.querySelector<HTMLFormElement>(".game-settings-form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(local).toHaveBeenCalledOnce();
   expect(dialog.isConnected).toBe(false);
 });
@@ -149,8 +150,10 @@ it("keeps local available without Firebase and disables only online options", ()
   expect(dialog.querySelector<HTMLButtonElement>(".new-game-join")!.disabled).toBe(true);
   expect(dialog.textContent).toContain("ONLINE PLAY IS NOT CONFIGURED");
   dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();
+  dialog.querySelector<HTMLFormElement>(".game-settings-form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(local).toHaveBeenCalledOnce();
 });
+it("validates 1-60 minute settings and passes the selected undo mode",()=>{const local=vi.fn();const dialog=openNewGameDialog(true,false,{local,create:vi.fn(),join:vi.fn()});dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const input=dialog.querySelector<HTMLInputElement>('input[name="minutes"]')!,turn=dialog.querySelector<HTMLInputElement>('input[value="turn"]')!,form=dialog.querySelector<HTMLFormElement>("form")!;expect(input.value).toBe("7");input.value="61";form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).not.toHaveBeenCalled();input.value="15";turn.checked=true;form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenCalledWith({initialTimeMs:900000,undoMode:"turn"})});
 
 it("runs CREATE from the menu and localizes the Korean menu and game screen", () => {
   const create = vi.fn();
@@ -160,6 +163,7 @@ it("runs CREATE from the menu and localizes the Korean menu and game screen", ()
     join: vi.fn(),
   });
   createDialog.querySelector<HTMLButtonElement>(".new-game-create")!.click();
+  createDialog.querySelector<HTMLFormElement>(".game-settings-form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(create).toHaveBeenCalledOnce();
 
   setLocale("ko");
@@ -174,6 +178,7 @@ it("runs CREATE from the menu and localizes the Korean menu and game screen", ()
   expect(koreanDialog.textContent).toContain("코드를 이용하여 입장하기");
   expect(koreanDialog.querySelector(".new-game-close")?.getAttribute("aria-label")).toBe("새 게임 메뉴 닫기");
   koreanDialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();
+  koreanDialog.querySelector<HTMLFormElement>(".game-settings-form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(local).toHaveBeenCalledOnce();
   const root = document.createElement("main");
   localGameView(root, createGame(), false, vi.fn(), vi.fn(), {

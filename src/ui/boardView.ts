@@ -55,7 +55,7 @@ export function updateBoard(
   presentation: BoardPresentation = {},
 ) {
   const changed = revisions.get(board) !== state.revision;
-  const { legal } = getMoveOptions(state);
+  const { legal, forbidden } = getMoveOptions(state);
   const cells = board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
   drawDefeatLines(board, presentation.defeatLines);
   board.classList.toggle("defeat-sequence", Boolean(presentation.defeatSequence));
@@ -69,11 +69,12 @@ export function updateBoard(
     };
     if (changed) {
       const boardColor = (Math.floor(i / 10) + (i % 10)) % 2 ? "board-color-b" : "board-color-a";
-      cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""}`;
+      cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""} ${!color && forbidden.includes(i) ? "forbidden" : ""}`;
       cell.replaceChildren();
+      if (!color && forbidden.includes(i)) cell.textContent = "🚫";
       cell.setAttribute(
         "aria-label",
-        `Row ${Math.floor(i / 10) + 1}, column ${(i % 10) + 1}: ${color || (legal.includes(i) ? "legal move" : "empty")}`,
+        t("board.cell", { row: Math.floor(i / 10) + 1, column: (i % 10) + 1, state: color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),
       );
       if (color) {
         const stone = document.createElement("span");

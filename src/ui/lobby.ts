@@ -3,13 +3,14 @@ import { setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
 import { openSettings } from "./settings";
 import { openNewGameDialog } from "./newGameDialog";
+import type { GameSettings } from "../game/session";
 export type LobbyActivity = "creating" | "joining" | "reconnecting" | undefined;
 export function lobby(
   root: HTMLElement,
   configured: boolean,
   busy: boolean,
-  local: () => void,
-  create: () => void,
+  local: (settings: GameSettings) => void,
+  create: (settings: GameSettings) => void,
   join: (code: string) => void,
   activity?: LobbyActivity,
   sound = true,

@@ -58,3 +58,10 @@ export async function watchRoom(
     for (const entry of entries) void remove(entry).catch(() => {});
   };
 }
+
+export async function watchServerOffset(onOffset: (offset: number) => void) {
+  const { db } = await connection();
+  return onValue(ref(db, ".info/serverTimeOffset"), snap =>
+    onOffset(typeof snap.val() === "number" ? snap.val() : 0),
+  );
+}

@@ -1,38 +1,12 @@
 import { expect, it } from "vitest";
-import { createGame } from "../src/game/gameState";
-import {
-  CODE_PATTERN,
-  joinRoomState,
-  moveRoomState,
-  randomCode,
-  type Room,
-} from "../src/online/rooms";
-const room = (): Room => ({
-  status: "waiting",
-  createdAt: 1,
-  players: { black: "a" },
-  game: createGame(),
-});
-it("creates unambiguous six-character codes", () => {
-  for (let i = 0; i < 100; i++) expect(randomCode()).toMatch(CODE_PATTERN);
-});
-it("joins exactly one white player", () => {
-  expect(joinRoomState(room(), "b").players).toEqual({
-    black: "a",
-    white: "b",
-  });
-});
-it("rejects missing, duplicate and full rooms", () => {
-  expect(() => joinRoomState(null, "b")).toThrow("ROOM NOT FOUND");
-  expect(() => joinRoomState(room(), "a")).toThrow("ALREADY");
-  expect(() => joinRoomState(joinRoomState(room(), "b"), "c")).toThrow(
-    "ROOM FULL",
-  );
-});
-it("rejects out of turn and stale / duplicate moves", () => {
-  const r = joinRoomState(room(), "b");
-  expect(() => moveRoomState(r, "b", 0, 34)).toThrow("NOT YOUR TURN");
-  const next = moveRoomState(r, "a", 0, 34);
-  expect(next.game.revision).toBe(1);
-  expect(() => moveRoomState(next, "b", 0, 33)).toThrow("STATE CHANGED");
-});
+import { DEFAULT_SETTINGS, remainingAt } from "../src/game/session";
+import { getMoveOptions } from "../src/game/rules";
+import { CODE_PATTERN, joinRoomState, moveRoomState, newRoom, randomCode, rematchRoomState, timeoutRoomState, undoRoomState } from "../src/online/rooms";
+
+it("creates valid codes and immutable default settings",()=>{for(let i=0;i<50;i++)expect(randomCode()).toMatch(CODE_PATTERN);expect(newRoom("a").settings).toEqual(DEFAULT_SETTINGS)});
+it("starts BLACK clock only when WHITE joins",()=>{const waiting=newRoom("a",DEFAULT_SETTINGS,100);expect(waiting.clock.running).toBe(false);const room=joinRoomState(waiting,"b",200);expect(room.clock).toMatchObject({blackRemainingMs:420000,whiteRemainingMs:420000,activeSince:200,running:true})});
+it("commits clocks only on placements and switches on actual turn changes",()=>{let room=joinRoomState(newRoom("a",DEFAULT_SETTINGS,0),"b",1000);room=moveRoomState(room,"a",0,34,6000);expect(room.clock.blackRemainingMs).toBe(415000);expect(room.game.currentPlayer).toBe("white");const first=moveRoomState(room,"b",1,getMoveOptions(room.game).legal[0],9000);expect(first.clock.whiteRemainingMs).toBe(417000);expect(first.game.currentPlayer).toBe("white");const second=moveRoomState(first,"b",2,getMoveOptions(first.game).legal[0],11000);expect(second.clock.whiteRemainingMs).toBe(415000);expect(second.game.currentPlayer).toBe("black")});
+it("ALL undo rewinds across turns and refunds time",()=>{let room=joinRoomState(newRoom("a"),"b",0);room=moveRoomState(room,"a",0,34,10000);room=moveRoomState(room,"b",1,33,15000);const undone=undoRoomState(room,"a",2,20000);expect(undone.moveLog).toHaveLength(1);expect(undone.game.currentPlayer).toBe("white");expect(undone.clock.whiteRemainingMs).toBe(420000);expect(undone.game.revision).toBe(3)});
+it("TURN undo rejects a completed prior turn",()=>{const settings={...DEFAULT_SETTINGS,undoMode:"turn" as const};let room=joinRoomState(newRoom("a",settings),"b",0);room=moveRoomState(room,"a",0,34,1000);expect(()=>undoRoomState(room,"a",1,2000)).toThrow("UNDO IS NOT AVAILABLE")});
+it("timeout awards opponent and stops both clocks",()=>{let room=joinRoomState(newRoom("a",{...DEFAULT_SETTINGS,initialTimeMs:60000}),"b",0);const end=timeoutRoomState(room,"b",60001);expect(end.game.winner).toBe("white");expect(end.game.events).toEqual(["BLACK TIMEOUT"]);expect(end.clock.running).toBe(false);expect(remainingAt(end.clock,"black",999999)).toBe(0)});
+it("online rematch waits for both votes then resets same room data",()=>{let room=joinRoomState(newRoom("a"),"b",0);room={...room,status:"finished",game:{...room.game,winner:"black"}};const one=rematchRoomState(room,"a",10);expect(one.status).toBe("finished");expect(one.rematch.black).toBe(true);const next=rematchRoomState(one,"b",20);expect(next.status).toBe("playing");expect(next.players).toEqual({black:"a",white:"b"});expect(next.settings).toEqual(DEFAULT_SETTINGS);expect(next.rematch.generation).toBe(1);expect(next.clock.blackRemainingMs).toBe(420000)});

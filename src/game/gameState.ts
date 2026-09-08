@@ -1,5 +1,5 @@
 import { initialBoard } from "./board";
-import { applyMove, getLegalMoves } from "./reversi";
+import { applyMove } from "./reversi";
 import { getMoveOptions } from "./rules";
 import { getSixLines } from "./six";
 import { other, type GameState, type Player } from "./types";
@@ -35,7 +35,7 @@ function finishTurn(s: GameState): void {
 }
 export function settlePasses(state: GameState): GameState {
   const s = { ...state, events: [...state.events] };
-  while (!s.winner && !getLegalMoves(s.board, s.currentPlayer).length) {
+  while (!s.winner && !getMoveOptions(s).legal.length) {
     s.events.push(`${s.currentPlayer.toUpperCase()} PASS`);
     s.consecutivePasses++;
     finishTurn(s);
@@ -54,8 +54,9 @@ export function playMove(
 ): GameState {
   if (state.winner || player !== state.currentPlayer)
     throw new Error("NOT YOUR TURN");
-  if (!getMoveOptions(state).legal.includes(index))
-    throw new Error("ILLEGAL MOVE");
+  const options = getMoveOptions(state);
+  if (options.forbidden.includes(index)) throw new Error("FORBIDDEN MOVE");
+  if (!options.legal.includes(index)) throw new Error("ILLEGAL MOVE");
   const s: GameState = {
     ...state,
     board: applyMove(state.board, player, index),

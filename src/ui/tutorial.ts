@@ -27,14 +27,20 @@ export const tutorialSteps: Step[] = [
   {
     titleKey: "tutorial.step4.title",
     paragraphKeys: ["tutorial.step4.p1", "tutorial.step4.p2"],
-    rows: ["BBBBBB", "BBWBBB"],
+    rows: ["WWWWWWW", "BWWWWWW"],
     captionKey: "tutorial.step4.caption",
   },
   {
     titleKey: "tutorial.step5.title",
-    paragraphKeys: ["tutorial.step5.p1", "tutorial.step5.p2", "tutorial.step5.p3"],
-    rows: ["BBWBBB", "WWWWWW"],
+    paragraphKeys: ["tutorial.step5.p1", "tutorial.step5.p2"],
+    rows: ["BBBBBB", "BBWBBB"],
     captionKey: "tutorial.step5.caption",
+  },
+  {
+    titleKey: "tutorial.step6.title",
+    paragraphKeys: ["tutorial.step6.p1", "tutorial.step6.p2", "tutorial.step6.p3"],
+    rows: ["BBWBBB", "WWWWWW"],
+    captionKey: "tutorial.step6.caption",
   },
 ];
 export function miniBoard(row: string): HTMLElement {
