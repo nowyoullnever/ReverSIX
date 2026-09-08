@@ -62,7 +62,7 @@ it("uses the shared EXACT SIX engine in a local session", () => {
   board[65] = "black";
   board[12] = "white";
   board[22] = "black";
-  local.game = { ...createGame(), board, turn: 1 };
+  local.game = { ...createGame(), board, turnStartBoard: [...board], turn: 1 };
   local.play(45);
   expect(local.game.moveNumberInTurn).toBe(2);
   local.play(2);

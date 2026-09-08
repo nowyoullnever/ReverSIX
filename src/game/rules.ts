@@ -9,15 +9,15 @@ export function getMoveOptions(state: GameState): {
   if (state.winner) return { legal: [], forbidden: [] };
   const player = state.currentPlayer;
   const opponent = other(player);
-  const before = new Set(
-    getSixLines(state.board, opponent).map((line) => line.join(",")),
+  const turnStart = new Set(
+    getSixLines(state.turnStartBoard, opponent).map((line) => line.join(",")),
   );
   const forbidden: number[] = [];
   const legal: number[] = [];
   for (const index of getLegalMoves(state.board, player)) {
     const board = applyMove(state.board, player, index);
     const createsOpponentSix = getSixLines(board, opponent).some(
-      (line) => !before.has(line.join(",")),
+      (line) => !turnStart.has(line.join(",")),
     );
     (createsOpponentSix ? forbidden : legal).push(index);
   }

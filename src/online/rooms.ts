@@ -29,7 +29,11 @@ export function newRoom(uid: string, settings: GameSettings = DEFAULT_SETTINGS, 
 }
 export function normalizeRoom(value: Room): NormalizedRoom {
   const settings = { ...DEFAULT_SETTINGS, ...(value.settings ?? {}) };
-  return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog: value.moveLog ?? [], rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, events: value.game.events ?? [] } };
+  const moveLog=value.moveLog??[];
+  const fallbackTurnStart=value.game.moveNumberInTurn===2&&moveLog.length
+    ? replayMoves(settings,moveLog.slice(0,-1),value.game.revision).game.board
+    : value.game.board;
+  return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??fallbackTurnStart)], events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {
   if (!value) throw new Error("ROOM NOT FOUND");

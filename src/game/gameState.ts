@@ -4,8 +4,10 @@ import { getMoveOptions } from "./rules";
 import { getSixLines } from "./six";
 import { other, type GameState, type Player } from "./types";
 export function createGame(): GameState {
+  const board = initialBoard();
   return {
-    board: initialBoard(),
+    board,
+    turnStartBoard: [...board],
     currentPlayer: "black",
     turn: 0,
     moveNumberInTurn: 1,
@@ -32,6 +34,7 @@ function finishTurn(s: GameState): void {
   s.turn++;
   s.moveNumberInTurn = 1;
   s.firstPlacedStone = -1;
+  s.turnStartBoard = [...s.board];
 }
 export function settlePasses(state: GameState): GameState {
   const s = { ...state, events: [...state.events] };

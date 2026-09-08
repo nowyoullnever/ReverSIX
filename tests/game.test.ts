@@ -6,7 +6,7 @@ import { getMoveOptions } from "../src/game/rules";
 import { createGame, playMove, settlePasses } from "../src/game/gameState";
 import type { Board, GameState } from "../src/game/types";
 function state(board: Board, extra: Partial<GameState> = {}): GameState {
-  return { ...createGame(), board, turn: 1, ...extra };
+  return { ...createGame(), board, turnStartBoard: [...board], turn: 1, ...extra };
 }
 function fill(
   board: Board,
@@ -58,14 +58,19 @@ describe("sequential turns", () => {
     const opening = playMove(createGame(), "black", 34);
     expect(opening.currentPlayer).toBe("white");
     expect(opening.turn).toBe(1);
+    expect(opening.turnStartBoard).toEqual(opening.board);
+    expect(opening.turnStartBoard).not.toBe(opening.board);
     const options = getMoveOptions(opening).legal;
     const first = playMove(opening, "white", options[0]);
     expect(first.moveNumberInTurn).toBe(2);
     expect(first.currentPlayer).toBe("white");
     expect(first.board).not.toEqual(opening.board);
+    expect(first.turnStartBoard).toEqual(opening.board);
     expect(getMoveOptions(first).legal).not.toEqual(options);
     const second = playMove(first, "white", getMoveOptions(first).legal[0]);
     expect(second.currentPlayer).toBe("black");
+    expect(second.turnStartBoard).toEqual(second.board);
+    expect(second.turnStartBoard).not.toBe(second.board);
     expect(second.revision).toBe(3);
     expect(() => playMove(opening, "black", 43)).toThrow("NOT YOUR TURN");
   });
@@ -267,6 +272,7 @@ describe("EXACT SIX and CHECK", () => {
   it("loses after breaking only one of multiple SIX lines", () => {
     const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
     fill(s.board, [70, 71, 72, 73, 74, 75]);
+    s.turnStartBoard = [...s.board];
     expect(playMove(s, "white", 34).winner).toBe("black");
   });
   it("counter-checks after successful defense", () => {
@@ -279,6 +285,7 @@ describe("EXACT SIX and CHECK", () => {
   it("CHECK defense failure takes priority over a defenders own SIX", () => {
     const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
     fill(s.board, [70, 71, 72, 73, 74, 75], "white");
+    s.turnStartBoard = [...s.board];
     expect(playMove(s, "white", 2).winner).toBe("black");
   });
   it("loses on PASS while in CHECK", () => {

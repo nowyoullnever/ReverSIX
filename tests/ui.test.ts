@@ -31,6 +31,7 @@ it("does not mark Reversi-legal cells as forbidden", () => {
   s.firstPlacedStone = 40;
   [40, 41, 44, 45].forEach((i) => (s.board[i] = "black"));
   s.board[43] = "white";
+  s.turnStartBoard = [...s.board];
   const move = vi.fn(),
     board = boardView(s, true, move);
   expect(cells(board)[42].textContent).toBe("");
@@ -39,7 +40,7 @@ it("does not mark Reversi-legal cells as forbidden", () => {
   cells(board)[42].click();
   expect(move).toHaveBeenCalledWith(42);
 });
-it("marks opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("×");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: creates an opponent SIX");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
+it("marks opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";s.turnStartBoard=[...s.board];const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("×");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: creates an opponent SIX");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
 it("disables board on opponent turn, waiting, disconnect and pending writes", () => {
   const r: Room = {
     status: "playing",

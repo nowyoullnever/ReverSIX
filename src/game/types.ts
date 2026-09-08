@@ -3,6 +3,7 @@ export type Cell = Player | "";
 export type Board = Cell[];
 export interface GameState {
   board: Board;
+  turnStartBoard: Board;
   currentPlayer: Player;
   turn: number;
   moveNumberInTurn: 1 | 2;
