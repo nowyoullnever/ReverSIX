@@ -7,6 +7,15 @@
       name="description"
       content="REVERSIX! A private two-player Reversi game with two moves and SIX checks."
     />
+    <script>
+      let saved;
+      try { saved = localStorage.getItem("reversix-theme"); } catch {}
+      const theme = saved === "light" || saved === "dark"
+        ? saved
+        : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    </script>
     <title>REVERSIX!</title>
   </head>
   <body>

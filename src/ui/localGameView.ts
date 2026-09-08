@@ -59,10 +59,9 @@ export function localGameView(
   if(timeout.pendingFor&&timeout.pendingFor===presentation.computerSide)root.querySelector<HTMLElement>(".timeout-dialog h2")!.textContent=t("computer.timeout");
   if(presentation.clock&&presentation.settings){
     root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);
-    const left=mode==="computer"&&presentation.humanSide?presentation.humanSide:"black",right=mode==="computer"&&presentation.computerSide?presentation.computerSide:"white";
-    updateClocks(root,presentation.clock,game.currentPlayer,now,left,right,presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor);
+    updateClocks(root,presentation.clock,game.currentPlayer,now,"black","white",presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor);
   }
-  if(mode==="computer"&&presentation.humanSide&&presentation.computerSide){for(const [side,player,label] of [["left",presentation.humanSide,"computer.you"],["right",presentation.computerSide,"computer.name"]] as const)root.querySelector<HTMLElement>(`.clock-${side} .clock-color`)!.textContent=`${t(label)} · ${t(`game.${player}`)}`}
+  if(mode==="computer"&&presentation.humanSide){for(const [side,player] of [["left","black"],["right","white"]] as const)root.querySelector<HTMLElement>(`.clock-${side} .clock-color`)!.textContent=`${t(player===presentation.humanSide?"computer.you":"computer.name")} · ${t(`game.${player}`)}`}
   const thinking=root.querySelector<HTMLElement>(".computer-status")!;thinking.hidden=!presentation.computerThinking;thinking.textContent=presentation.computerThinking?`${t("computer.thinking")}${presentation.computerProgress?` ${presentation.computerProgress.done} / ${presentation.computerProgress.total}`:""}`:"";
   const status = root.querySelector<HTMLElement>(".turn-status")!;
   const timeoutEvent=game.events.find(event=>event.endsWith(" TIMEOUT"));

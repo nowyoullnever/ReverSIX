@@ -92,19 +92,23 @@ it("renders local play without room, connection, copy, or chat UI", () => {
   expect(leave).toHaveBeenCalledOnce();
 });
 
-it("labels the human clock on the left and locks input on the computer turn",()=>{
+it("keeps BLACK on the left and WHITE on the right in computer mode",()=>{
   const game=createGame(),root=document.createElement("main"),move=vi.fn();
   localGameView(root,game,false,move,vi.fn(),{
     canUndo:false,undo:vi.fn(),mode:"computer",humanSide:"white",computerSide:"black",computerThinking:true,computerProgress:{done:7,total:24},
     clock:{blackRemainingMs:111000,whiteRemainingMs:222000,activeSince:0,running:true},settings:DEFAULT_SETTINGS,now:0,countdownEndsAt:0,
   });
   expect(root.querySelector(".local-title")?.textContent).toBe("VS. COMPUTER");
-  expect(root.querySelector(".clock-left .clock-color")?.textContent).toBe("YOU · WHITE");
-  expect(root.querySelector(".clock-left .clock-time")?.textContent).toBe("03:42.000");
-  expect(root.querySelector(".clock-right .clock-color")?.textContent).toBe("COMPUTER · BLACK");
-  expect(root.querySelector(".clock-right .clock-time")?.textContent).toBe("01:51.000");
+  expect(root.querySelector(".clock-left .clock-color")?.textContent).toBe("COMPUTER · BLACK");
+  expect(root.querySelector(".clock-left .clock-time")?.textContent).toBe("01:51:000");
+  expect(root.querySelector(".clock-right .clock-color")?.textContent).toBe("YOU · WHITE");
+  expect(root.querySelector(".clock-right .clock-time")?.textContent).toBe("03:42:000");
   expect(root.querySelector(".computer-status")?.textContent).toContain("7 / 24");
   expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);
+  const blackRoot=document.createElement("main");
+  localGameView(blackRoot,game,false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),mode:"computer",humanSide:"black",computerSide:"white",clock:{blackRemainingMs:111000,whiteRemainingMs:222000,activeSince:0,running:true},settings:DEFAULT_SETTINGS,now:0,countdownEndsAt:0});
+  expect(blackRoot.querySelector(".clock-left .clock-color")?.textContent).toBe("YOU · BLACK");
+  expect(blackRoot.querySelector(".clock-right .clock-color")?.textContent).toBe("COMPUTER · WHITE");
 });
 
 it("shows the local timeout decision and locks the board",()=>{const session=new LocalGameSession({...DEFAULT_SETTINGS,initialTimeMs:60000},0);session.tick(63001);const root=document.createElement("main"),decision=vi.fn();localGameView(root,session.game,false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),clock:session.clock,settings:session.settings,now:63001,countdownEndsAt:session.countdownEndsAt,timeout:session.timeout,timeoutDecision:decision});expect(root.querySelector(".timeout-dialog")?.hasAttribute("open")).toBe(true);expect(root.querySelector(".timeout-dialog")?.textContent).toContain("CONTINUE?");expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);root.querySelectorAll<HTMLButtonElement>(".timeout-actions button")[1].click();expect(decision).toHaveBeenCalledWith(false)});

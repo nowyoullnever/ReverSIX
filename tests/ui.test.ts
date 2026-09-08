@@ -9,7 +9,7 @@ import type { Room } from "../src/online/rooms";
 import { formatClock } from "../src/ui/clockView";
 const cells = (board: HTMLElement) =>
   board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
-it.each([[420000,"07:00.000"],[419999,"06:59.999"],[64008,"01:04.008"],[1,"00:00.001"],[0,"00:00.000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>expect(formatClock(ms)).toBe(formatted));
+it.each([[420000,"07:00:000"],[372481,"06:12:481"],[5027,"00:05:027"],[1,"00:00:001"],[0,"00:00:000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>{const value=formatClock(ms);expect(value).toBe(formatted);expect(value).not.toContain(".")});
 it("renders A-J and 1-10 coordinates around the board",()=>{const frame=boardWithCoordinates(createGame(),true,vi.fn());expect([...frame.querySelectorAll(".board-column-coordinates span")].map(el=>el.textContent).join("")).toBe("ABCDEFGHIJ");expect([...frame.querySelectorAll(".board-row-coordinates span")].map(el=>el.textContent).join(",")).toBe("1,2,3,4,5,6,7,8,9,10");expect(frame.querySelectorAll(".board > .cell")[0].getAttribute("aria-label")).toContain("column A")});
 it("renders 100 cells and only legal moves can be clicked", () => {
   const move = vi.fn(),
@@ -283,4 +283,6 @@ it("without Firebase, lobby keeps NEW GAME available", () => {
   expect(root.querySelector("input, form")).toBeNull();
   expect(root.textContent).not.toContain("COMPUTER");
   expect(root.textContent).not.toContain("REVERSI × SIX");
+  expect(root.querySelector(".home-shell > h1")?.textContent).toBe("REVERSIX!");
+  expect(root.querySelector(".home-shell > .lobby #new-game")).not.toBeNull();
 });

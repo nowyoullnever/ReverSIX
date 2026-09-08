@@ -33,6 +33,7 @@ import { LocalGameSession } from "./local/localGame";
 import { mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
+import { watchSystemTheme } from "./ui/theme";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -59,6 +60,7 @@ let lastPlaced = -1,
 let defeatSequenceRevision = -1;
 const toast = new Toast();
 const audio = new AudioManager();
+watchSystemTheme();
 setLocale(getLocale());
 document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
 const presenceEvents = new PresenceEvents();
@@ -191,7 +193,7 @@ function render(change?: BoardChange) {
           await enter(value);
         }, "joining")),
       lobbyActivity,
-      audio.isEnabled(),
+      () => audio.isEnabled(),
       (enabled) => { audio.setEnabled(enabled); render(); },
       render,
     );
