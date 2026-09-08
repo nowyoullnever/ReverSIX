@@ -1,4 +1,4 @@
-import { get, ref, runTransaction } from "firebase/database";
+import { get, onValue, ref, runTransaction, type Database } from "firebase/database";
 import { createGame, playMove } from "../game/gameState";
 import { DEFAULT_SETTINGS, commitElapsed, initialClock, mayUndo, replayMoves, validSettings, type ClockState, type GameSettings, type MoveRecord } from "../game/session";
 import { other, type Player } from "../game/types";
@@ -89,15 +89,16 @@ async function transaction(code: string, mutate: (room: Room, uid: string) => Ro
   if (!result.committed) throw new Error(failure);
   return normalizeRoom(result.snapshot.val());
 }
+function serverNow(db:Database):Promise<number>{return new Promise((resolve,reject)=>onValue(ref(db,".info/serverTimeOffset"),snap=>resolve(Date.now()+(snap.val()??0)),reject,{onlyOnce:true}))}
 export async function createRoom(settings: GameSettings = DEFAULT_SETTINGS) {
   const { db, uid } = await connection();
-  const offset=(await get(ref(db,".info/serverTimeOffset"))).val()??0; const now=Date.now()+offset;
+  const now=await serverNow(db);
   for (let attempt=0; attempt<10; attempt++) { const code=randomCode(); const result=await runTransaction(ref(db,`rooms/${code}`), current=>current?undefined:newRoom(uid,settings,now),{applyLocally:false}); if(result.committed)return code; }
   throw new Error("COULD NOT CREATE ROOM — TRY AGAIN");
 }
 export async function joinRoom(code: string) {
   if (!CODE_PATTERN.test(code)) throw new Error("ENTER A VALID 6-CHARACTER CODE");
-  const { db, uid }=await connection(); const roomRef=ref(db,`rooms/${code}`); const snapshot=await get(roomRef); const offset=(await get(ref(db,".info/serverTimeOffset"))).val()??0; const now=Date.now()+offset; joinRoomState(snapshot.val(),uid,now); let failure="ROOM FULL";
+  const { db, uid }=await connection(); const roomRef=ref(db,`rooms/${code}`); const snapshot=await get(roomRef); const now=await serverNow(db); joinRoomState(snapshot.val(),uid,now); let failure="ROOM FULL";
   const result=await runTransaction(roomRef,current=>{try{return joinRoomState(current??snapshot.val(),uid,now)}catch(e){failure=(e as Error).message;return}},{applyLocally:false}); if(!result.committed)throw new Error(failure);
 }
 export const submitMove=(code:string,revision:number,index:number,now=Date.now())=>transaction(code,(r,u)=>moveRoomState(r,u,revision,index,now));
