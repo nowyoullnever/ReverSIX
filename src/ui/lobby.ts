@@ -4,12 +4,14 @@ import { t } from "../i18n/i18n";
 import { openSettings } from "./settings";
 import { openNewGameDialog } from "./newGameDialog";
 import type { GameSettings } from "../game/session";
+import type { Player } from "../game/types";
 export type LobbyActivity = "creating" | "joining" | "reconnecting" | undefined;
 export function lobby(
   root: HTMLElement,
   configured: boolean,
   busy: boolean,
   local: (settings: GameSettings) => void,
+  computer: (settings: GameSettings,humanSide:Player) => void,
   create: (settings: GameSettings) => void,
   join: (code: string) => void,
   activity?: LobbyActivity,
@@ -23,7 +25,7 @@ export function lobby(
   const newGame = root.querySelector<HTMLButtonElement>("#new-game")!;
   newGame.disabled = busy;
   newGame.onclick = () =>
-    openNewGameDialog(configured, busy, { local, create, join });
+    openNewGameDialog(configured, busy, { local, computer, create, join });
   const help = document.createElement("button");
   help.className = "how-to-play";
   help.textContent = t("lobby.how");

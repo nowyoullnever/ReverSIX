@@ -1,0 +1,42 @@
+import { expect,it,vi } from "vitest";
+import { ComputerController } from "../src/ai/computerController";
+import { createGame } from "../src/game/gameState";
+
+class FakeWorker {
+  onmessage:((event:MessageEvent)=>void)|null=null;
+  onerror:((event:ErrorEvent)=>void)|null=null;
+  messages:unknown[]=[];
+  postMessage(message:unknown){this.messages.push(message)}
+  terminate(){}
+  emit(data:unknown){this.onmessage?.({data} as MessageEvent)}
+}
+
+it("loads the Pages-relative model once and reports search progress",async()=>{
+  const worker=new FakeWorker(),controller=new ComputerController(()=>worker);
+  const load=controller.load(),loadMessage=worker.messages[0] as {type:string;id:number;base:string};
+  expect(loadMessage).toMatchObject({type:"load",base:"/model/latest"});
+  worker.emit({type:"loaded",id:loadMessage.id,meta:{iter:20}});
+  await expect(load).resolves.toMatchObject({iter:20});
+  await controller.load();
+  expect(worker.messages.filter((message:any)=>message.type==="load")).toHaveLength(1);
+  const progress=vi.fn(),choice=controller.choose(createGame(),progress);
+  await Promise.resolve();
+  const search=worker.messages.at(-1) as {type:string;id:number;state:{revision:number}};
+  expect(search).toMatchObject({type:"search",state:{revision:0}});
+  worker.emit({type:"progress",id:search.id,done:3,total:20});
+  expect(progress).toHaveBeenCalledWith(3,20);
+  worker.emit({type:"result",id:search.id,index:34,revision:0});
+  await expect(choice).resolves.toEqual({index:34,revision:0});
+});
+
+it("rejects a cancelled search and ignores its late result",async()=>{
+  const worker=new FakeWorker(),controller=new ComputerController(()=>worker);
+  const load=controller.load(),loadMessage=worker.messages[0] as {id:number};
+  worker.emit({type:"loaded",id:loadMessage.id,meta:{iter:20}});await load;
+  const choice=controller.choose(createGame());await Promise.resolve();
+  const search=worker.messages.at(-1) as {id:number};
+  controller.cancel();
+  await expect(choice).rejects.toMatchObject({name:"AbortError"});
+  worker.emit({type:"result",id:search.id,index:34,revision:0});
+  expect((worker.messages.at(-1) as {type:string;id:number})).toEqual({type:"cancel",id:search.id});
+});

@@ -28,9 +28,11 @@ import {
   type BoardChange,
 } from "./ui/transitions";
 import { AudioManager } from "./audio/audio";
-import { getLocale, localizeError, setLocale } from "./i18n/i18n";
+import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
 import { mayUndo, remainingAt, type GameSettings } from "./game/session";
+import type { Player } from "./game/types";
+import { ComputerController } from "./ai/computerController";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -45,6 +47,9 @@ let subscriptionGeneration = 0;
 let localGame: LocalGameSession | null = null;
 let localLocked = false;
 let localTimer: ReturnType<typeof setTimeout> | undefined;
+let computerTimer:ReturnType<typeof setTimeout>|undefined;
+let computerController:ComputerController|undefined;
+let computerMode:{humanSide:Player;computerSide:Player;loading:boolean;loadFailed:boolean;thinking:boolean;progress?:{done:number;total:number};generation:number}|null=null;
 let serverOffset=0;
 let stopOffset:(()=>void)|undefined;
 let timeoutPending=false;
@@ -106,7 +111,11 @@ const presenter = new RoomPresenter(
   () => render(),
 );
 function render(change?: BoardChange) {
-  if (localGame) {
+  if(computerMode&&!localGame){
+    root.dataset.mode="computer-loading";delete root.dataset.room;
+    root.innerHTML=`<h1>REVERSIX!</h1><p class="local-title">${t("computer.title")}</p><p class="computer-loading" role="status">${t(computerMode.loadFailed?"computer.loadFailed":"computer.loading")}</p><button class="back">${t("game.back")}</button>`;
+    root.querySelector<HTMLButtonElement>(".back")!.onclick=leaveLocal;
+  } else if (localGame) {
     localGameView(
       root,
       localGame.game,
@@ -127,6 +136,11 @@ function render(change?: BoardChange) {
         countdownEndsAt:localGame.countdownEndsAt,
         timeout:localGame.timeout,
         timeoutDecision:decideLocalTimeout,
+        mode:computerMode?"computer":"local",
+        humanSide:computerMode?.humanSide,
+        computerSide:computerMode?.computerSide,
+        computerThinking:computerMode?.thinking,
+        computerProgress:computerMode?.progress,
       },
     );
   } else if (room) {
@@ -169,6 +183,7 @@ function render(change?: BoardChange) {
       firebaseConfigured,
       busy,
       startLocalGame,
+      startComputerGame,
       (settings) => void (audio.unlock(), action(async () => enter(await createRoom(settings)), "creating")),
       (value) =>
         void (audio.unlock(), action(async () => {
@@ -195,6 +210,7 @@ function render(change?: BoardChange) {
   }
 }
 function startLocalGame(settings: GameSettings) {
+  cancelComputerWork();computerMode=null;
   localGame = new LocalGameSession(settings);
   lastPlaced = -1;
   six = [];
@@ -204,9 +220,20 @@ function startLocalGame(settings: GameSettings) {
   sessionStorage.removeItem("reversix-room");
   render();
 }
-function rematchLocal(){if(!localGame?.game.winner)return;localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render()}
+async function startComputerGame(settings:GameSettings,humanSide:Player){
+  cancelComputerWork();localGame=null;const generation=(computerMode?.generation??0)+1;
+  computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",loading:true,loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
+  computerController??=new ComputerController();
+  try{await computerController.load();if(!computerMode||computerMode.generation!==generation)return;localGame=new LocalGameSession(settings);computerMode.loading=false;render()}
+  catch{if(!computerMode||computerMode.generation!==generation)return;computerMode.loading=false;computerMode.loadFailed=true;render()}
+}
+function rematchLocal(){if(!localGame?.game.winner)return;cancelComputerWork(false);localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render()}
 function localMove(index: number) {
-  if (!localGame || localLocked || localGame.game.winner) return;
+  if (!localGame || localLocked || localGame.game.winner || (computerMode&&localGame.game.currentPlayer===computerMode.computerSide)) return;
+  performLocalMove(index);
+}
+function performLocalMove(index:number){
+  if(!localGame)return;
   void audio.unlock();
   let result;
   try{result=localGame.play(index)}catch(e){error=(e as Error).message;render();return}
@@ -231,11 +258,13 @@ function localMove(index: number) {
       localLocked = false;
       localTimer = undefined;
       render();
+      queueComputerMove(500);
     }, MOVE_ANIMATION_MS);
-  }
+  }else queueComputerMove(500);
 }
 function undoLocal() {
   if (!localGame || localLocked || !localGame.canUndo()) return;
+  cancelComputerWork(false);
   localGame.undo();
   six = localGame.game.checkBy && !localGame.game.winner
     ? [...new Set(getSixLines(localGame.game.board, localGame.game.checkBy).flat())]
@@ -243,9 +272,11 @@ function undoLocal() {
   defeatSequenceRevision = -1;
   toast.clear();
   render();
+  queueComputerMove(500);
 }
-function decideLocalTimeout(continueGame:boolean){if(!localGame?.timeout.pendingFor)return;localGame.decideTimeout(continueGame);render()}
+function decideLocalTimeout(continueGame:boolean){if(!localGame?.timeout.pendingFor)return;cancelComputerWork(false);localGame.decideTimeout(continueGame);render();if(continueGame)queueComputerMove()}
 function leaveLocal() {
+  cancelComputerWork();computerMode=null;
   clearTimeout(localTimer);
   localTimer = undefined;
   localLocked = false;
@@ -256,6 +287,20 @@ function leaveLocal() {
   toast.clear();
   error = "";
   render();
+}
+function cancelComputerWork(invalidate=true){clearTimeout(computerTimer);computerTimer=undefined;computerController?.cancel();if(computerMode){computerMode.thinking=false;computerMode.progress=undefined;if(invalidate)computerMode.generation++}}
+function queueComputerMove(delay=0){
+  if(computerTimer||!computerMode||!localGame)return;
+  computerTimer=setTimeout(()=>{computerTimer=undefined;void runComputerMove()},delay);
+}
+async function runComputerMove(){
+  if(!computerMode||!localGame||computerMode.loading||computerMode.loadFailed||computerMode.thinking||localLocked||localGame.game.winner||localGame.timeout.pendingFor||Date.now()<localGame.countdownEndsAt||localGame.game.currentPlayer!==computerMode.computerSide)return;
+  const generation=computerMode.generation,revision=localGame.game.revision;computerMode.thinking=true;computerMode.progress=undefined;render();
+  try{
+    const result=await computerController!.choose(localGame.game,(done,total)=>{if(computerMode&&computerMode.generation===generation){computerMode.progress={done,total};render()}});
+    if(!computerMode||!localGame||computerMode.generation!==generation||localGame.game.revision!==revision||result.revision!==revision||localGame.game.currentPlayer!==computerMode.computerSide||localGame.timeout.pendingFor||localGame.game.winner)return;
+    computerMode.thinking=false;computerMode.progress=undefined;performLocalMove(result.index);
+  }catch(e){if((e as Error).name!=="AbortError"&&computerMode&&computerMode.generation===generation){computerMode.thinking=false;computerMode.progress=undefined;error="COMPUTER SEARCH FAILED";render()}}
 }
 async function action(fn: () => Promise<unknown>, activity?: LobbyActivity) {
   if (busy || presenter.locked) return;
@@ -346,7 +391,7 @@ async function enter(value: string) {
 }
 function serverNow(){return Date.now()+serverOffset}
 setInterval(()=>{
-  if(localGame){if(localGame.tick()) {defeatSequenceRevision=-1;toast.show(localGame.game.events)} render();return}
+  if(localGame){if(localGame.tick()) {cancelComputerWork(false);defeatSequenceRevision=-1;toast.show(localGame.game.events)} render();queueComputerMove();return}
   if(room?.status==="playing"){
     const now=serverNow();
     if(now<room.countdownEndsAt!){render();return}

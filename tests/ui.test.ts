@@ -141,7 +141,7 @@ it("uses accessible fixed-width animated dots for waiting and reconnecting state
 });
 it("shows the lobby activity status with shared animated dots", () => {
   const root = document.createElement("main");
-  lobby(root, true, true, vi.fn(), vi.fn(), vi.fn(), "creating");
+  lobby(root, true, true, vi.fn(), vi.fn(), vi.fn(), vi.fn(), "creating");
   expect(root.querySelector(".lobby-status")?.textContent).toBe("CREATING ROOM");
   expect(root.querySelector(".lobby-status .animated-dots")?.getAttribute("aria-hidden")).toBe("true");
 });
@@ -278,7 +278,7 @@ it("marks a live defense-failure presentation for one-time SIX sequencing", () =
 });
 it("without Firebase, lobby keeps NEW GAME available", () => {
   const root = document.createElement("main");
-  lobby(root, false, false, vi.fn(), vi.fn(), vi.fn());
+  lobby(root, false, false, vi.fn(), vi.fn(), vi.fn(), vi.fn());
   expect(root.querySelector<HTMLButtonElement>("#new-game")?.disabled).toBe(false);
   expect(root.querySelector("input, form")).toBeNull();
   expect(root.textContent).not.toContain("COMPUTER");

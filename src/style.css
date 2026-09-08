@@ -144,6 +144,8 @@ input {
   letter-spacing: .08em;
 }
 .local-count { margin: 18px 0 4px; font-size: .875rem; }
+.computer-status { min-height:1.2em; margin:-8px 0 10px; font-size:.78rem; letter-spacing:.04em; }
+.computer-loading { margin:48px 0 28px; }
 .room span {
   font-size: 1.4rem;
   user-select: all;

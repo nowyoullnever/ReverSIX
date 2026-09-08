@@ -92,6 +92,21 @@ it("renders local play without room, connection, copy, or chat UI", () => {
   expect(leave).toHaveBeenCalledOnce();
 });
 
+it("labels the human clock on the left and locks input on the computer turn",()=>{
+  const game=createGame(),root=document.createElement("main"),move=vi.fn();
+  localGameView(root,game,false,move,vi.fn(),{
+    canUndo:false,undo:vi.fn(),mode:"computer",humanSide:"white",computerSide:"black",computerThinking:true,computerProgress:{done:7,total:24},
+    clock:{blackRemainingMs:111000,whiteRemainingMs:222000,activeSince:0,running:true},settings:DEFAULT_SETTINGS,now:0,countdownEndsAt:0,
+  });
+  expect(root.querySelector(".local-title")?.textContent).toBe("VS. COMPUTER");
+  expect(root.querySelector(".clock-left .clock-color")?.textContent).toBe("YOU · WHITE");
+  expect(root.querySelector(".clock-left .clock-time")?.textContent).toBe("03:42.000");
+  expect(root.querySelector(".clock-right .clock-color")?.textContent).toBe("COMPUTER · BLACK");
+  expect(root.querySelector(".clock-right .clock-time")?.textContent).toBe("01:51.000");
+  expect(root.querySelector(".computer-status")?.textContent).toContain("7 / 24");
+  expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);
+});
+
 it("shows the local timeout decision and locks the board",()=>{const session=new LocalGameSession({...DEFAULT_SETTINGS,initialTimeMs:60000},0);session.tick(63001);const root=document.createElement("main"),decision=vi.fn();localGameView(root,session.game,false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),clock:session.clock,settings:session.settings,now:63001,countdownEndsAt:session.countdownEndsAt,timeout:session.timeout,timeoutDecision:decision});expect(root.querySelector(".timeout-dialog")?.hasAttribute("open")).toBe(true);expect(root.querySelector(".timeout-dialog")?.textContent).toContain("CONTINUE?");expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);root.querySelectorAll<HTMLButtonElement>(".timeout-actions button")[1].click();expect(decision).toHaveBeenCalledWith(false)});
 
 it("shows objective local CHECK and color-based winner text with SIX lines", () => {
@@ -123,16 +138,17 @@ it("shows objective local CHECK and color-based winner text with SIX lines", () 
   expect(resultRoot.textContent).not.toContain("YOU WIN");
 });
 
-it("shows only NEW GAME on Home and opens the three-option menu", () => {
+it("shows only NEW GAME on Home and opens the four-option menu", () => {
   const root = document.createElement("main");
   const local = vi.fn(), create = vi.fn(), join = vi.fn();
-  lobby(root, true, false, local, create, join);
+  lobby(root, true, false, local, vi.fn(), create, join);
   expect(root.querySelector("#new-game")?.textContent).toBe("NEW GAME");
   expect(root.querySelector("input, form, #create")).toBeNull();
   root.querySelector<HTMLButtonElement>("#new-game")!.click();
   const dialog = document.querySelector<HTMLDialogElement>(".new-game-dialog")!;
-  expect(dialog.querySelectorAll(".new-game-options button")).toHaveLength(3);
+  expect(dialog.querySelectorAll(".new-game-options button")).toHaveLength(4);
   expect(dialog.textContent).toContain("LOCAL 2 PLAYER");
+  expect(dialog.textContent).toContain("VS. COMPUTER");
   expect(dialog.textContent).toContain("CREATE PRIVATE GAME");
   expect(dialog.textContent).toContain("JOIN PRIVATE GAME");
   dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();
@@ -145,10 +161,12 @@ it("keeps local available without Firebase and disables only online options", ()
   const local = vi.fn();
   const dialog = openNewGameDialog(false, false, {
     local,
+    computer: vi.fn(),
     create: vi.fn(),
     join: vi.fn(),
   });
   expect(dialog.querySelector<HTMLButtonElement>(".new-game-local")!.disabled).toBe(false);
+  expect(dialog.querySelector<HTMLButtonElement>(".new-game-computer")!.disabled).toBe(false);
   expect(dialog.querySelector<HTMLButtonElement>(".new-game-create")!.disabled).toBe(true);
   expect(dialog.querySelector<HTMLButtonElement>(".new-game-join")!.disabled).toBe(true);
   expect(dialog.textContent).toContain("ONLINE PLAY IS NOT CONFIGURED");
@@ -156,12 +174,13 @@ it("keeps local available without Firebase and disables only online options", ()
   dialog.querySelector<HTMLFormElement>(".game-settings-form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(local).toHaveBeenCalledOnce();
 });
-it("validates time settings and presents time and undo as paired choices",()=>{const local=vi.fn();const dialog=openNewGameDialog(true,false,{local,create:vi.fn(),join:vi.fn()});dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const input=dialog.querySelector<HTMLInputElement>('input[name="minutes"]')!,turn=dialog.querySelector<HTMLInputElement>('input[value="turn"]')!,form=dialog.querySelector<HTMLFormElement>("form")!;expect(input.value).toBe("7");expect(input.closest(".time-input-shell")?.textContent).toContain("MINUTES");expect(dialog.querySelectorAll(".choice-options")).toHaveLength(2);input.value="61";form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).not.toHaveBeenCalled();input.value="15";turn.checked=true;form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenCalledWith({initialTimeMs:900000,clockEnabled:true,undoMode:"turn"});const offDialog=openNewGameDialog(true,false,{local,create:vi.fn(),join:vi.fn()});offDialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const offInput=offDialog.querySelector<HTMLInputElement>('input[name="clockEnabled"][value="off"]')!,offForm=offDialog.querySelector<HTMLFormElement>("form")!;offInput.checked=true;offInput.dispatchEvent(new Event("change",{bubbles:true}));expect(offDialog.querySelector<HTMLInputElement>('input[name="minutes"]')!.disabled).toBe(true);offForm.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenLastCalledWith({initialTimeMs:420000,clockEnabled:false,undoMode:"all"})});
+it("validates time settings and presents time and undo as paired choices",()=>{const local=vi.fn();const dialog=openNewGameDialog(true,false,{local,computer:vi.fn(),create:vi.fn(),join:vi.fn()});dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const input=dialog.querySelector<HTMLInputElement>('input[name="minutes"]')!,turn=dialog.querySelector<HTMLInputElement>('input[value="turn"]')!,form=dialog.querySelector<HTMLFormElement>("form")!;expect(input.value).toBe("7");expect(input.closest(".time-input-shell")?.textContent).toContain("MINUTES");expect(dialog.querySelectorAll(".choice-options")).toHaveLength(2);input.value="61";form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).not.toHaveBeenCalled();input.value="15";turn.checked=true;form.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenCalledWith({initialTimeMs:900000,clockEnabled:true,undoMode:"turn"});const offDialog=openNewGameDialog(true,false,{local,computer:vi.fn(),create:vi.fn(),join:vi.fn()});offDialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const offInput=offDialog.querySelector<HTMLInputElement>('input[name="clockEnabled"][value="off"]')!,offForm=offDialog.querySelector<HTMLFormElement>("form")!;offInput.checked=true;offInput.dispatchEvent(new Event("change",{bubbles:true}));expect(offDialog.querySelector<HTMLInputElement>('input[name="minutes"]')!.disabled).toBe(true);offForm.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenLastCalledWith({initialTimeMs:420000,clockEnabled:false,undoMode:"all"})});
 
 it("runs CREATE from the menu and localizes the Korean menu and game screen", () => {
   const create = vi.fn();
   const createDialog = openNewGameDialog(true, false, {
     local: vi.fn(),
+    computer: vi.fn(),
     create,
     join: vi.fn(),
   });
@@ -173,11 +192,13 @@ it("runs CREATE from the menu and localizes the Korean menu and game screen", ()
   const local = vi.fn();
   const koreanDialog = openNewGameDialog(true, false, {
     local,
+    computer: vi.fn(),
     create: vi.fn(),
     join: vi.fn(),
   });
   expect(koreanDialog.textContent).toContain("새 게임");
   expect(koreanDialog.textContent).toContain("2인 대전");
+  expect(koreanDialog.textContent).toContain("컴퓨터 대전");
   expect(koreanDialog.textContent).toContain("코드를 이용하여 입장하기");
   expect(koreanDialog.querySelector(".new-game-close")?.getAttribute("aria-label")).toBe("새 게임 메뉴 닫기");
   koreanDialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();
@@ -196,6 +217,7 @@ it("uses the existing room-code constraints in the JOIN step and supports BACK",
   const join = vi.fn();
   const dialog = openNewGameDialog(true, false, {
     local: vi.fn(),
+    computer: vi.fn(),
     create: vi.fn(),
     join,
   });
@@ -205,7 +227,7 @@ it("uses the existing room-code constraints in the JOIN step and supports BACK",
   expect(input.maxLength).toBe(6);
   expect(input.pattern).toBe("[A-HJ-NP-Za-hj-np-z2-9]{6}");
   dialog.querySelector<HTMLButtonElement>(".new-game-back")!.click();
-  expect(dialog.querySelectorAll(".new-game-options button")).toHaveLength(3);
+  expect(dialog.querySelectorAll(".new-game-options button")).toHaveLength(4);
   dialog.querySelector<HTMLButtonElement>(".new-game-join")!.click();
   const valid = dialog.querySelector<HTMLInputElement>("#new-game-code")!;
   valid.value = "abc234";
@@ -215,8 +237,21 @@ it("uses the existing room-code constraints in the JOIN step and supports BACK",
   expect(join).toHaveBeenCalledWith("ABC234");
 });
 
+it("collects the human side and shared settings for VS. COMPUTER",()=>{
+  const computer=vi.fn();
+  const dialog=openNewGameDialog(true,false,{local:vi.fn(),computer,create:vi.fn(),join:vi.fn()});
+  dialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
+  expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')!.value).toBe("black");
+  const white=dialog.querySelector<HTMLInputElement>('input[name="humanSide"][value="white"]')!;
+  const turn=dialog.querySelector<HTMLInputElement>('input[name="undoMode"][value="turn"]')!;
+  const minutes=dialog.querySelector<HTMLInputElement>('input[name="minutes"]')!;
+  white.checked=true;turn.checked=true;minutes.value="9";
+  dialog.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
+  expect(computer).toHaveBeenCalledWith({initialTimeMs:540000,clockEnabled:true,undoMode:"turn"},"white");
+});
+
 it("closes the NEW GAME menu with both × and Escape", () => {
-  const actions = { local: vi.fn(), create: vi.fn(), join: vi.fn() };
+  const actions = { local: vi.fn(), computer: vi.fn(), create: vi.fn(), join: vi.fn() };
   const buttonDialog = openNewGameDialog(true, false, actions);
   expect(buttonDialog.querySelector(".new-game-close")?.getAttribute("aria-label")).toBe("Close new game menu");
   buttonDialog.querySelector<HTMLButtonElement>(".new-game-close")!.click();

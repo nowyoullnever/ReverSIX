@@ -1,6 +1,10 @@
 # REVERSIX!
 
-친구 두 명이 6자리 방 코드로 플레이하는 10×10 Reversi 변형 게임. Vite + TypeScript, Firebase Realtime Database. React, AI, 공개 방, 계정 가입 화면은 없습니다.
+## Computer opponent attribution
+
+The computer opponent model, Float32 neural inference, nine-plane encoder, and Gumbel AlphaZero search are adapted from [donghoon0709/reversix](https://github.com/donghoon0709/reversix) at commit `e93b4c1cfdf3c1d201c89d11e15099b580506067`. REVERSIX keeps its own TypeScript game engine as the sole source of truth for legal moves, flipping, Exact SIX, CHECK, PASS, and game results.
+
+로컬 2인, 학습 AI 상대, 또는 6자리 방 코드 온라인 대전을 지원하는 10×10 Reversi 변형 게임. Vite + TypeScript, Firebase Realtime Database. React, 공개 방, 계정 가입 화면은 없습니다.
 
 ## 실행
 

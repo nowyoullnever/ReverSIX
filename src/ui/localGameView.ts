@@ -7,6 +7,7 @@ import type { ClockState, GameSettings } from "../game/session";
 import { settingsSummary, updateClocks } from "./clockView";
 import { updateCountdown, updateTimeoutDialog } from "./timingView";
 import type { TimeoutState } from "../game/session";
+import type { Player } from "../game/types";
 
 export interface LocalGamePresentation extends BoardPresentation {
   canUndo: boolean;
@@ -18,6 +19,11 @@ export interface LocalGamePresentation extends BoardPresentation {
   countdownEndsAt?: number;
   timeout?: TimeoutState;
   timeoutDecision?: (continueGame:boolean) => void;
+  mode?: "local"|"computer";
+  humanSide?: Player;
+  computerSide?: Player;
+  computerThinking?: boolean;
+  computerProgress?: {done:number;total:number};
 }
 
 export function localGameView(
@@ -37,19 +43,27 @@ export function localGameView(
   const finalPresentation = defenseFailed
     ? { ...presentation, defeatLines: getSixLines(game.board, winningPlayer!) }
     : presentation;
-  if (root.dataset.mode !== "local" || !root.querySelector(".board")) {
-    root.dataset.mode = "local";
+  const mode=presentation.mode??"local";
+  if (root.dataset.mode !== mode || !root.querySelector(".board")) {
+    root.dataset.mode = mode;
     delete root.dataset.room;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><p class="local-title"></p><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="check" hidden></p><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back"></button><button class="text-button undo" disabled></button></div><p class="game-error" role="alert" hidden></p><div class="countdown-overlay" hidden aria-live="assertive"></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
+      '<h1>REVERSIX!</h1><p class="local-title"></p><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="computer-status" role="status" hidden></p><p class="check" hidden></p><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back"></button><button class="text-button undo" disabled></button></div><p class="game-error" role="alert" hidden></p><div class="countdown-overlay" hidden aria-live="assertive"></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
     root
       .querySelector(".board-slot")!
       .append(boardWithCoordinates(game, false, move, finalPresentation));
   }
-  root.querySelector<HTMLElement>(".local-title")!.textContent = t("local.title");
+  root.querySelector<HTMLElement>(".local-title")!.textContent = t(mode==="computer"?"computer.title":"local.title");
   const now=presentation.now??Date.now(),countingDown=updateCountdown(root,presentation.countdownEndsAt??0,now),timeout=presentation.timeout??{pendingFor:"",continueWithoutClock:false};
   updateTimeoutDialog(root,timeout,Boolean(timeout.pendingFor),presentation.timeoutDecision);
-  if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,now,"black","white",presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor)}
+  if(timeout.pendingFor&&timeout.pendingFor===presentation.computerSide)root.querySelector<HTMLElement>(".timeout-dialog h2")!.textContent=t("computer.timeout");
+  if(presentation.clock&&presentation.settings){
+    root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);
+    const left=mode==="computer"&&presentation.humanSide?presentation.humanSide:"black",right=mode==="computer"&&presentation.computerSide?presentation.computerSide:"white";
+    updateClocks(root,presentation.clock,game.currentPlayer,now,left,right,presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor);
+  }
+  if(mode==="computer"&&presentation.humanSide&&presentation.computerSide){for(const [side,player,label] of [["left",presentation.humanSide,"computer.you"],["right",presentation.computerSide,"computer.name"]] as const)root.querySelector<HTMLElement>(`.clock-${side} .clock-color`)!.textContent=`${t(label)} · ${t(`game.${player}`)}`}
+  const thinking=root.querySelector<HTMLElement>(".computer-status")!;thinking.hidden=!presentation.computerThinking;thinking.textContent=presentation.computerThinking?`${t("computer.thinking")}${presentation.computerProgress?` ${presentation.computerProgress.done} / ${presentation.computerProgress.total}`:""}`:"";
   const status = root.querySelector<HTMLElement>(".turn-status")!;
   const timeoutEvent=game.events.find(event=>event.endsWith(" TIMEOUT"));
   const result = game.winner
@@ -72,7 +86,7 @@ export function localGameView(
   updateBoard(
     root.querySelector<HTMLElement>(".board")!,
     game,
-    !busy && !game.winner && !countingDown && !timeout.pendingFor,
+    !busy && !game.winner && !countingDown && !timeout.pendingFor && !(mode==="computer"&&(presentation.computerThinking||game.currentPlayer===presentation.computerSide)),
     move,
     finalPresentation,
   );
