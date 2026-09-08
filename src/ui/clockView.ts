@@ -11,7 +11,7 @@ export function updateClocks(root: HTMLElement, clock: ClockState, active: Playe
   for(const [side,player] of [["left",left],["right",right]] as const){
     const el=root.querySelector<HTMLElement>(`.clock-${side}`)!;
     el.classList.toggle("active",enabled&&clock.running&&active===player);
-    el.querySelector<HTMLElement>(".clock-color")!.textContent=`⌛ ${t(`game.${player}`)}`;
+    el.querySelector<HTMLElement>(".clock-color")!.textContent=t(`game.${player}`);
     el.querySelector<HTMLElement>(".clock-time")!.textContent=enabled?formatClock(remainingAt(clock,player,now,active)):"∞";
   }
 }
