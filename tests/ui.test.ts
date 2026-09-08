@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { expect, it, vi } from "vitest";
-import { boardView } from "../src/ui/boardView";
+import { boardView, boardWithCoordinates } from "../src/ui/boardView";
 import { gameView } from "../src/ui/gameView";
 import { lobby } from "../src/ui/lobby";
 import { createGame } from "../src/game/gameState";
@@ -8,6 +8,7 @@ import { emptyBoard } from "../src/game/board";
 import type { Room } from "../src/online/rooms";
 const cells = (board: HTMLElement) =>
   board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
+it("renders A-J and 1-10 coordinates around the board",()=>{const frame=boardWithCoordinates(createGame(),true,vi.fn());expect([...frame.querySelectorAll(".board-column-coordinates span")].map(el=>el.textContent).join("")).toBe("ABCDEFGHIJ");expect([...frame.querySelectorAll(".board-row-coordinates span")].map(el=>el.textContent).join(",")).toBe("1,2,3,4,5,6,7,8,9,10");expect(frame.querySelectorAll(".board > .cell")[0].getAttribute("aria-label")).toContain("column A")});
 it("renders 100 cells and only legal moves can be clicked", () => {
   const move = vi.fn(),
     board = boardView(createGame(), true, move);

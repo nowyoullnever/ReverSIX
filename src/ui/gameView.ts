@@ -1,7 +1,7 @@
 import type { Player } from "../game/types";
 import { getSixLines } from "../game/six";
 import { normalizeRoom, type Room } from "../online/rooms";
-import { boardView, updateBoard, type BoardPresentation } from "./boardView";
+import { boardWithCoordinates, updateBoard, type BoardPresentation } from "./boardView";
 import { replayMotion, setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
 import { settingsSummary, updateClocks } from "./clockView";
@@ -40,7 +40,7 @@ export function gameView(
       '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
-      .append(boardView(s, false, move, finalPresentation));
+      .append(boardWithCoordinates(s, false, move, finalPresentation));
   }
   root.querySelector(".room span")!.textContent = t("game.room", { code });
   root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(room.settings!);

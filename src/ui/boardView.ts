@@ -74,7 +74,7 @@ export function updateBoard(
       if (!color && forbidden.includes(i)) cell.textContent = "🚫";
       cell.setAttribute(
         "aria-label",
-        t("board.cell", { row: Math.floor(i / 10) + 1, column: (i % 10) + 1, state: color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),
+        t("board.cell", { row: Math.floor(i / 10) + 1, column: String.fromCharCode(65 + i % 10), state: color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),
       );
       if (color) {
         const stone = document.createElement("span");
@@ -131,4 +131,21 @@ export function boardView(
   }
   updateBoard(board, state, enabled, move, presentation);
   return board;
+}
+
+export function boardWithCoordinates(
+  state: GameState,
+  enabled: boolean,
+  move: (i: number) => void,
+  presentation: BoardPresentation = {},
+): HTMLElement {
+  const frame=document.createElement("div"); frame.className="board-coordinate-frame";
+  const columns=document.createElement("div"); columns.className="board-column-coordinates"; columns.setAttribute("aria-hidden","true");
+  const rows=document.createElement("div"); rows.className="board-row-coordinates"; rows.setAttribute("aria-hidden","true");
+  for(let i=0;i<10;i++){
+    const column=document.createElement("span"); column.textContent=String.fromCharCode(65+i); columns.append(column);
+    const row=document.createElement("span"); row.textContent=String(i+1); rows.append(row);
+  }
+  frame.append(columns,rows,boardView(state,enabled,move,presentation));
+  return frame;
 }

@@ -1,7 +1,7 @@
 import { getSixLines } from "../game/six";
 import type { GameState } from "../game/types";
 import { localizeEvent, t } from "../i18n/i18n";
-import { boardView, updateBoard, type BoardPresentation } from "./boardView";
+import { boardWithCoordinates, updateBoard, type BoardPresentation } from "./boardView";
 import { setStatusText } from "./motion";
 import type { ClockState, GameSettings } from "../game/session";
 import { settingsSummary, updateClocks } from "./clockView";
@@ -39,7 +39,7 @@ export function localGameView(
       '<h1>REVERSIX!</h1><p class="local-title"></p><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="check" hidden></p><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back"></button><button class="text-button undo" disabled></button></div><p class="game-error" role="alert" hidden></p>';
     root
       .querySelector(".board-slot")!
-      .append(boardView(game, false, move, finalPresentation));
+      .append(boardWithCoordinates(game, false, move, finalPresentation));
   }
   root.querySelector<HTMLElement>(".local-title")!.textContent = t("local.title");
   if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,presentation.now??Date.now(),"black","white",presentation.settings.clockEnabled)}
