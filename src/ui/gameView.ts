@@ -45,7 +45,7 @@ export function gameView(
   root.querySelector(".room span")!.textContent = t("game.room", { code });
   root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(room.settings!);
   const opponent:Player=player === "black" ? "white" : "black";
-  updateClocks(root,room.clock!,s.currentPlayer,presentation.now??Date.now(),player,opponent);
+  updateClocks(root,room.clock!,s.currentPlayer,presentation.now??Date.now(),player,opponent,room.settings!.clockEnabled);
   const copy = root.querySelector<HTMLButtonElement>(".copy")!;
   if (!copyTimers.has(copy)) copy.textContent = t("game.copy");
   copy.onclick = () =>

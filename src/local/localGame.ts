@@ -10,19 +10,19 @@ export class LocalGameSession {
   moveLog: MoveRecord[] = [];
   lastPlaced = -1;
   constructor(public readonly settings: GameSettings = DEFAULT_SETTINGS, now = Date.now()) {
-    this.clock = initialClock(settings, now, true);
+    this.clock = initialClock(settings, now, settings.clockEnabled);
   }
   play(index: number, now = Date.now()): LocalMoveResult {
     const before = this.game, player = before.currentPlayer;
-    if (remainingAt(this.clock, player, now) <= 0) { this.tick(now); throw new Error("TIME EXPIRED"); }
-    const elapsedMs = Math.max(0, now - this.clock.activeSince);
+    if (this.settings.clockEnabled && remainingAt(this.clock, player, now) <= 0) { this.tick(now); throw new Error("TIME EXPIRED"); }
+    const elapsedMs = this.settings.clockEnabled ? Math.max(0, now - this.clock.activeSince) : 0;
     const after = playMove(before, player, index);
     const change = compareBoards(before.board, after.board);
     this.moveLog.push({ index, player, elapsedMs });
     if (player === "black") this.clock.blackRemainingMs = Math.max(0, this.clock.blackRemainingMs - elapsedMs);
     else this.clock.whiteRemainingMs = Math.max(0, this.clock.whiteRemainingMs - elapsedMs);
     this.clock.activeSince = now;
-    this.clock.running = !after.winner;
+    this.clock.running = this.settings.clockEnabled && !after.winner;
     this.game = after;
     this.lastPlaced = change.placed.length === 1 ? change.placed[0] : -1;
     return { before, after, change };
@@ -33,7 +33,7 @@ export class LocalGameSession {
     this.moveLog.pop();
     const rebuilt = replayMoves(this.settings, this.moveLog, this.game.revision + 1);
     this.game = rebuilt.game;
-    this.clock = { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: true };
+    this.clock = { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: this.settings.clockEnabled };
     this.lastPlaced = this.moveLog.at(-1)?.index ?? -1;
     return this.game;
   }
@@ -46,7 +46,7 @@ export class LocalGameSession {
     this.clock.running = false;
     return true;
   }
-  rematch(now = Date.now()) { this.game = createGame(); this.clock = initialClock(this.settings, now, true); this.moveLog = []; this.lastPlaced = -1; }
+  rematch(now = Date.now()) { this.game = createGame(); this.clock = initialClock(this.settings, now, this.settings.clockEnabled); this.moveLog = []; this.lastPlaced = -1; }
   remaining(player: Player, now = Date.now()) { return remainingAt(this.clock, player, now, this.game.currentPlayer); }
   get historyLength() { return this.moveLog.length; }
 }

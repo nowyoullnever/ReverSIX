@@ -26,7 +26,7 @@ export function newRoom(uid: string, settings: GameSettings = DEFAULT_SETTINGS, 
   return { status: "waiting", createdAt: now, players: { black: uid }, settings: { ...settings }, clock: initialClock(settings), moveLog: [], rematch: { black: false, white: false, generation: 0 }, game: createGame() };
 }
 export function normalizeRoom(value: Room): NormalizedRoom {
-  const settings = value.settings ?? DEFAULT_SETTINGS;
+  const settings = { ...DEFAULT_SETTINGS, ...(value.settings ?? {}) };
   return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog: value.moveLog ?? [], rematch: value.rematch ?? { black:false, white:false, generation:0 }, game: { ...value.game, events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {
@@ -34,7 +34,7 @@ export function joinRoomState(value: Room | null, uid: string, now = Date.now())
   const room = normalizeRoom(value);
   if (room.players.black === uid || room.players.white === uid) throw new Error("ALREADY IN THIS ROOM");
   if (room.players.white || room.status !== "waiting") throw new Error("ROOM FULL");
-  return { ...room, players: { ...room.players, white: uid }, status: "playing", clock: { ...room.clock, activeSince: now, running: true } };
+  return { ...room, players: { ...room.players, white: uid }, status: "playing", clock: { ...room.clock, activeSince: now, running: room.settings.clockEnabled } };
 }
 function assertMember(room: NormalizedRoom, uid: string): Player {
   if (room.players.black === uid) return "black";
@@ -52,7 +52,7 @@ export function moveRoomState(value: Room, uid: string, revision: number, index:
     throw new Error("TIME EXPIRED");
   const game = playMove(room.game, player, index);
   const finished = Boolean(game.winner);
-  return { ...room, game, moveLog: [...room.moveLog, { index, player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: !finished } };
+  return { ...room, game, moveLog: [...room.moveLog, { index, player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: room.settings.clockEnabled && !finished } };
 }
 export function undoRoomState(value: Room, uid: string, revision: number = value.game.revision, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
@@ -62,7 +62,7 @@ export function undoRoomState(value: Room, uid: string, revision: number = value
   if (!mayUndo(room.game, room.moveLog, room.settings.undoMode)) throw new Error("UNDO IS NOT AVAILABLE");
   const records = room.moveLog.slice(0, -1);
   const rebuilt = replayMoves(room.settings, records, room.game.revision + 1);
-  return { ...room, moveLog: records, game: rebuilt.game, clock: { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: true } };
+  return { ...room, moveLog: records, game: rebuilt.game, clock: { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: room.settings.clockEnabled } };
 }
 export function timeoutRoomState(value: Room, uid: string, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
@@ -81,7 +81,7 @@ export function rematchRoomState(value: Room, uid: string, now = Date.now()): No
   const rematch = { ...room.rematch, [player]: true };
   if (!rematch.black || !rematch.white) return { ...room, game:{...room.game,revision:room.game.revision+1}, rematch };
   const game=createGame(); game.revision=room.game.revision+1;
-  return { ...room, status: "playing", game, clock: initialClock(room.settings, now, true), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
+  return { ...room, status: "playing", game, clock: initialClock(room.settings, now, room.settings.clockEnabled), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
 }
 async function transaction(code: string, mutate: (room: Room, uid: string) => Room) {
   const { db, uid } = await connection(); let failure = "ROOM NOT FOUND";

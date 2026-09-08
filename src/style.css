@@ -197,11 +197,18 @@ input {
 .clock-time { font-size: 1.7rem; font-variant-numeric: tabular-nums; }
 .game-settings-summary { margin: 4px auto 12px; color:#666; font-size:.75rem; }
 .game-settings-form { display:grid; gap:20px; text-align:left; }
-.game-settings-form label { display:grid; gap:8px; }
-.game-settings-form input[type="number"] { width:100%; min-height:44px; padding:8px; font:inherit; }
 .settings-legend { margin:0; font-size:.875rem; }
-.undo-mode-options { display:grid; gap:12px; }
-.undo-mode-options label { grid-template-columns:auto 1fr; align-items:center; }
+.game-settings-section { display:grid; gap:12px; }
+.choice-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.choice-options label { display:block; min-width:0; margin-bottom:0; cursor:pointer; }
+.choice-options input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.choice-options span { display:grid; place-items:center; min-height:46px; padding:8px 10px; border:1px solid #000; text-align:center; line-height:1.15; }
+.choice-options input:checked + span { background:#000; color:#fff; }
+.choice-options input:focus-visible + span { outline:2px solid #000; outline-offset:3px; }
+.time-input-shell { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; min-height:66px; margin-bottom:0; border:1px solid #000; padding:0 16px; transition:opacity 120ms ease; }
+.time-input-shell input[type="number"] { width:100%; min-width:0; border:0; outline:0; padding:12px 0; background:transparent; font:inherit; font-size:1.1rem; }
+.time-input-shell span { padding-left:12px; white-space:nowrap; }
+.time-input-shell.disabled { opacity:.38; }
 .settings-actions { display:flex; gap:12px; justify-content:center; }
 .cell {
   padding: 0;

@@ -4,6 +4,7 @@ import type { GameState, Player } from "./types";
 export type UndoMode = "all" | "turn";
 export interface GameSettings {
   initialTimeMs: number;
+  clockEnabled: boolean;
   undoMode: UndoMode;
 }
 export interface ClockState {
@@ -19,11 +20,13 @@ export interface MoveRecord {
 }
 export const DEFAULT_SETTINGS: GameSettings = {
   initialTimeMs: 420_000,
+  clockEnabled: true,
   undoMode: "all",
 };
 export function validSettings(settings: GameSettings) {
   return Number.isInteger(settings.initialTimeMs) &&
     settings.initialTimeMs >= 60_000 && settings.initialTimeMs <= 3_600_000 &&
+    typeof settings.clockEnabled === "boolean" &&
     (settings.undoMode === "all" || settings.undoMode === "turn");
 }
 export function initialClock(settings: GameSettings, activeSince = 0, running = false): ClockState {

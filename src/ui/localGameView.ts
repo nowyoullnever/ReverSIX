@@ -42,7 +42,7 @@ export function localGameView(
       .append(boardView(game, false, move, finalPresentation));
   }
   root.querySelector<HTMLElement>(".local-title")!.textContent = t("local.title");
-  if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,presentation.now??Date.now(),"black","white")}
+  if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,presentation.now??Date.now(),"black","white",presentation.settings.clockEnabled)}
   const status = root.querySelector<HTMLElement>(".turn-status")!;
   const timeoutEvent=game.events.find(event=>event.endsWith(" TIMEOUT"));
   const result = game.winner

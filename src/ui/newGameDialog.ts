@@ -115,17 +115,29 @@ export function openNewGameDialog(
 
 function settingsForm(local: boolean, submitSettings: (settings: GameSettings) => void, backAction: () => void) {
   const form=document.createElement("form"); form.className="game-settings-form";
-  const timeLabel=document.createElement("label"); timeLabel.textContent=t("gameSettings.time");
-  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="1"; input.max="60"; input.step="1"; input.value=String(DEFAULT_SETTINGS.initialTimeMs/60000); input.required=true; timeLabel.append(input, document.createTextNode(` ${t("gameSettings.minutes")}`));
+  const timeSection=document.createElement("section"); timeSection.className="game-settings-section";
+  const timeLegend=document.createElement("p"); timeLegend.className="settings-legend"; timeLegend.textContent=t("gameSettings.time");
+  const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],"on");
+  const timeLabel=document.createElement("label"); timeLabel.className="time-input-shell";
+  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="1"; input.max="60"; input.step="1"; input.value=String(DEFAULT_SETTINGS.initialTimeMs/60000); input.required=true;
+  const unit=document.createElement("span"); unit.textContent=t("gameSettings.minutes"); timeLabel.append(input,unit);
+  const syncTimeInput=()=>{const enabled=(form.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value??"on")==="on";input.disabled=!enabled;timeLabel.classList.toggle("disabled",!enabled)};
+  timeChoices.addEventListener("change",syncTimeInput); timeSection.append(timeLegend,timeChoices,timeLabel);
   const legend=document.createElement("p"); legend.className="settings-legend"; legend.textContent=t("gameSettings.undo");
-  const choices=document.createElement("div"); choices.className="undo-mode-options";
-  for(const [value,key] of [["all","gameSettings.all"],["turn","gameSettings.turn"]] as const){const label=document.createElement("label");const radio=document.createElement("input");radio.type="radio";radio.name="undoMode";radio.value=value;radio.checked=value==="all";label.append(radio,document.createTextNode(t(key)));choices.append(label)}
+  const choices=radioOptions("undoMode",[["all","gameSettings.all"],["turn","gameSettings.turn"]],"all");
+  const undoSection=document.createElement("section"); undoSection.className="game-settings-section"; undoSection.append(legend,choices);
   const actions=document.createElement("div"); actions.className="settings-actions";
   const back=document.createElement("button"); back.type="button"; back.textContent=t("newGame.back"); back.onclick=backAction;
   const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(local?"gameSettings.start":"roomSettings.create"); actions.append(back,submit);
-  form.append(timeLabel,legend,choices,actions);
-  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const minutes=Number(input.value);if(!Number.isInteger(minutes)||minutes<1||minutes>60)return;submitSettings({initialTimeMs:minutes*60000,undoMode:new FormData(form).get("undoMode") as UndoMode})};
+  form.append(timeSection,undoSection,actions); syncTimeInput();
+  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode})};
   return form;
+}
+
+function radioOptions(name:string,values:readonly (readonly [string,string])[],selected:string){
+  const options=document.createElement("div"); options.className="choice-options";
+  for(const [value,key] of values){const label=document.createElement("label");const radio=document.createElement("input");radio.type="radio";radio.name=name;radio.value=value;radio.checked=value===selected;const text=document.createElement("span");text.textContent=t(key);label.append(radio,text);options.append(label)}
+  return options;
 }
 
 function option(label: string, disabled: boolean, click: () => void) {
