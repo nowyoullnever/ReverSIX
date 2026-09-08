@@ -7,6 +7,7 @@ import {
   requestRematch,
   submitMove,
   submitTimeout,
+  submitTimeoutDecision,
   submitUndo,
   type Room,
 } from "./online/rooms";
@@ -117,12 +118,15 @@ function render(change?: BoardChange) {
         lastPlaced: localGame.lastPlaced,
         six,
         defeatSequence: defeatSequenceRevision === localGame.game.revision,
-        canUndo: localGame.canUndo(),
+        canUndo: localGame.canUndo(Date.now()),
         undo: undoLocal,
         rematch: rematchLocal,
         clock: localGame.clock,
         settings: localGame.settings,
         now: Date.now(),
+        countdownEndsAt:localGame.countdownEndsAt,
+        timeout:localGame.timeout,
+        timeoutDecision:decideLocalTimeout,
       },
     );
   } else if (room) {
@@ -149,12 +153,13 @@ function render(change?: BoardChange) {
         six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
         canUndo:
-          room.status === "playing" && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
+          room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
         undo: () =>
           void action(async () => {
             await submitUndo(code, room!.game.revision, serverNow());
           }),
         rematch: () => void action(()=>requestRematch(code,serverNow())),
+        timeoutDecision:(continueGame)=>void action(()=>submitTimeoutDecision(code,continueGame)),
         now: serverNow(),
       },
     );
@@ -239,6 +244,7 @@ function undoLocal() {
   toast.clear();
   render();
 }
+function decideLocalTimeout(continueGame:boolean){if(!localGame?.timeout.pendingFor)return;localGame.decideTimeout(continueGame);render()}
 function leaveLocal() {
   clearTimeout(localTimer);
   localTimer = undefined;
@@ -341,12 +347,16 @@ async function enter(value: string) {
 function serverNow(){return Date.now()+serverOffset}
 setInterval(()=>{
   if(localGame){if(localGame.tick()) {defeatSequenceRevision=-1;toast.show(localGame.game.events)} render();return}
-  if(room?.status==="playing"&&room.clock!.running){
-    const left=remainingAt(room.clock!,room.game.currentPlayer,serverNow());
-    if(left<=0&&!timeoutPending){timeoutPending=true;void submitTimeout(code,serverNow()).catch(()=>{}).finally(()=>timeoutPending=false)}
-    render();
+  if(room?.status==="playing"){
+    const now=serverNow();
+    if(now<room.countdownEndsAt!){render();return}
+    if(room.clock!.running&&!room.timeout?.pendingFor&&!room.timeout?.continueWithoutClock){
+      const left=remainingAt(room.clock!,room.game.currentPlayer,now);
+      if(left<=0&&!timeoutPending){timeoutPending=true;void submitTimeout(code,now).catch(()=>{}).finally(()=>timeoutPending=false)}
+      render();
+    }
   }
-},200);
+},33);
 render();
 const saved = sessionStorage.getItem("reversix-room");
 if (firebaseConfigured && saved && CODE_PATTERN.test(saved))

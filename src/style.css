@@ -205,7 +205,7 @@ input {
 }
 .board-column-coordinates span,
 .board-row-coordinates span {
-  font-size:.58rem;
+  font-size:calc(.58rem + 1.5pt);
   line-height:1;
   text-align:center;
   color:#555;
@@ -224,7 +224,34 @@ input {
 .clock-color {
   font-size: .875rem;
 }
-.clock-time { font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+.clock-time { font-size: 1.45rem; font-variant-numeric: tabular-nums; white-space:nowrap; }
+.countdown-overlay {
+  position:fixed;
+  inset:0;
+  z-index:30;
+  display:grid;
+  place-items:center;
+  background:rgb(255 255 255 / .28);
+}
+.countdown-overlay[hidden] { display:none; }
+.countdown-overlay span { font-size:clamp(4rem,14vw,8rem); animation:countdown-pop 180ms ease-out both; }
+@keyframes countdown-pop { from { opacity:0; transform:scale(.9); } to { opacity:1; transform:scale(1); } }
+.timeout-dialog {
+  position:fixed;
+  inset:50% auto auto 50%;
+  z-index:40;
+  width:min(calc(100vw - 32px),360px);
+  margin:0;
+  transform:translate(-50%,-50%);
+  padding:28px;
+  border:1px solid #000;
+  background:#fff;
+  text-align:center;
+}
+.timeout-dialog h2 { margin:0 0 18px; font-size:1.2rem; }
+.timeout-dialog p { margin:0 0 22px; }
+.timeout-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.timeout-actions button { min-height:46px; }
 .game-settings-summary { margin: 4px auto 12px; color:#666; font-size:.75rem; }
 .game-settings-form { display:grid; gap:20px; text-align:left; }
 .settings-legend { margin:0; font-size:.875rem; }
@@ -593,6 +620,7 @@ input {
   .tutorial-step-enter {
     animation: none !important;
   }
+  .countdown-overlay span { animation:none !important; }
   .defeat-sequence .defeat-six-line {
     stroke-dashoffset: 0;
     opacity: .78;

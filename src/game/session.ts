@@ -18,6 +18,16 @@ export interface MoveRecord {
   player: Player;
   elapsedMs: number;
 }
+export interface TimeoutState {
+  pendingFor: "" | Player;
+  continueWithoutClock: boolean;
+}
+export const COUNTDOWN_MS = 3_000;
+export const EMPTY_TIMEOUT: TimeoutState = { pendingFor: "", continueWithoutClock: false };
+export function countdownValue(endsAt: number, now: number) {
+  const remaining=endsAt-now;
+  return remaining>0?Math.min(3,Math.ceil(remaining/1_000)):0;
+}
 export const DEFAULT_SETTINGS: GameSettings = {
   initialTimeMs: 420_000,
   clockEnabled: true,

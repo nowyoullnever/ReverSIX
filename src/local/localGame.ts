@@ -1,5 +1,5 @@
 import { createGame, playMove } from "../game/gameState";
-import { DEFAULT_SETTINGS, initialClock, mayUndo, remainingAt, replayMoves, type ClockState, type GameSettings, type MoveRecord } from "../game/session";
+import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, initialClock, mayUndo, remainingAt, replayMoves, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
 import type { GameState, Player } from "../game/types";
 import { compareBoards, type BoardChange } from "../ui/transitions";
 
@@ -9,44 +9,55 @@ export class LocalGameSession {
   clock: ClockState;
   moveLog: MoveRecord[] = [];
   lastPlaced = -1;
+  countdownEndsAt: number;
+  timeout: TimeoutState = { ...EMPTY_TIMEOUT };
   constructor(public readonly settings: GameSettings = DEFAULT_SETTINGS, now = Date.now()) {
-    this.clock = initialClock(settings, now, settings.clockEnabled);
+    this.countdownEndsAt=now+COUNTDOWN_MS;
+    this.clock = initialClock(settings, this.countdownEndsAt, settings.clockEnabled);
   }
   play(index: number, now = Date.now()): LocalMoveResult {
+    if(now<this.countdownEndsAt)throw new Error("GAME IS COUNTING DOWN");
+    if(this.timeout.pendingFor)throw new Error("TIMEOUT DECISION PENDING");
     const before = this.game, player = before.currentPlayer;
-    if (this.settings.clockEnabled && remainingAt(this.clock, player, now) <= 0) { this.tick(now); throw new Error("TIME EXPIRED"); }
-    const elapsedMs = this.settings.clockEnabled ? Math.max(0, now - this.clock.activeSince) : 0;
+    if (this.settings.clockEnabled && !this.timeout.continueWithoutClock && remainingAt(this.clock, player, now) <= 0) { this.tick(now); throw new Error("TIME EXPIRED"); }
+    const elapsedMs = this.settings.clockEnabled && !this.timeout.continueWithoutClock ? Math.max(0, now - this.clock.activeSince) : 0;
     const after = playMove(before, player, index);
     const change = compareBoards(before.board, after.board);
     this.moveLog.push({ index, player, elapsedMs });
     if (player === "black") this.clock.blackRemainingMs = Math.max(0, this.clock.blackRemainingMs - elapsedMs);
     else this.clock.whiteRemainingMs = Math.max(0, this.clock.whiteRemainingMs - elapsedMs);
     this.clock.activeSince = now;
-    this.clock.running = this.settings.clockEnabled && !after.winner;
+    this.clock.running = this.settings.clockEnabled && !this.timeout.continueWithoutClock && !after.winner;
     this.game = after;
     this.lastPlaced = change.placed.length === 1 ? change.placed[0] : -1;
     return { before, after, change };
   }
-  canUndo() { return mayUndo(this.game, this.moveLog, this.settings.undoMode); }
+  canUndo(now=Date.now()) { return now>=this.countdownEndsAt && !this.timeout.pendingFor && mayUndo(this.game, this.moveLog, this.settings.undoMode); }
   undo(now = Date.now()) {
     if (!this.canUndo()) throw new Error("UNDO IS NOT AVAILABLE");
     this.moveLog.pop();
     const rebuilt = replayMoves(this.settings, this.moveLog, this.game.revision + 1);
     this.game = rebuilt.game;
-    this.clock = { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: this.settings.clockEnabled };
+    this.clock = { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: this.settings.clockEnabled && !this.timeout.continueWithoutClock };
     this.lastPlaced = this.moveLog.at(-1)?.index ?? -1;
     return this.game;
   }
   tick(now = Date.now()) {
-    if (!this.clock.running || this.game.winner) return false;
+    if (now<this.countdownEndsAt || this.timeout.pendingFor || this.timeout.continueWithoutClock || !this.clock.running || this.game.winner) return false;
     const player = this.game.currentPlayer;
     if (remainingAt(this.clock, player, now) > 0) return false;
     if (player === "black") this.clock.blackRemainingMs = 0; else this.clock.whiteRemainingMs = 0;
-    this.game = { ...this.game, winner: player === "black" ? "white" : "black", revision: this.game.revision + 1, events: [`${player.toUpperCase()} TIMEOUT`] };
+    this.game = { ...this.game, revision: this.game.revision + 1, events: [] };
     this.clock.running = false;
+    this.timeout={pendingFor:player,continueWithoutClock:false};
     return true;
   }
-  rematch(now = Date.now()) { this.game = createGame(); this.clock = initialClock(this.settings, now, this.settings.clockEnabled); this.moveLog = []; this.lastPlaced = -1; }
+  decideTimeout(continueGame:boolean){
+    const player=this.timeout.pendingFor;if(!player)throw new Error("NO TIMEOUT DECISION PENDING");
+    if(continueGame){this.timeout={pendingFor:"",continueWithoutClock:true};this.game={...this.game,revision:this.game.revision+1,events:[]};return}
+    this.timeout={...EMPTY_TIMEOUT};this.game={...this.game,winner:player==="black"?"white":"black",revision:this.game.revision+1,events:[`${player.toUpperCase()} TIMEOUT`]};
+  }
+  rematch(now = Date.now()) { this.game = createGame(); this.countdownEndsAt=now+COUNTDOWN_MS;this.timeout={...EMPTY_TIMEOUT};this.clock = initialClock(this.settings, this.countdownEndsAt, this.settings.clockEnabled); this.moveLog = []; this.lastPlaced = -1; }
   remaining(player: Player, now = Date.now()) { return remainingAt(this.clock, player, now, this.game.currentPlayer); }
   get historyLength() { return this.moveLog.length; }
 }

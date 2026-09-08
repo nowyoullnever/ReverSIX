@@ -1,6 +1,6 @@
 import { get, onValue, ref, runTransaction, type Database } from "firebase/database";
 import { createGame, playMove } from "../game/gameState";
-import { DEFAULT_SETTINGS, commitElapsed, initialClock, mayUndo, replayMoves, validSettings, type ClockState, type GameSettings, type MoveRecord } from "../game/session";
+import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, commitElapsed, initialClock, mayUndo, replayMoves, validSettings, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
 import { other, type Player } from "../game/types";
 import { connection } from "./firebase";
 
@@ -13,9 +13,11 @@ export interface Room {
   clock?: ClockState;
   moveLog?: MoveRecord[];
   rematch?: RematchState;
+  countdownEndsAt?: number;
+  timeout?: TimeoutState;
   game: ReturnType<typeof createGame>;
 }
-export interface NormalizedRoom extends Room { settings:GameSettings; clock:ClockState; moveLog:MoveRecord[]; rematch:RematchState }
+export interface NormalizedRoom extends Room { settings:GameSettings; clock:ClockState; moveLog:MoveRecord[]; rematch:RematchState; countdownEndsAt:number; timeout:TimeoutState }
 export const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
 export function randomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -23,18 +25,19 @@ export function randomCode() {
 }
 export function newRoom(uid: string, settings: GameSettings = DEFAULT_SETTINGS, now = Date.now()): NormalizedRoom {
   if (!validSettings(settings)) throw new Error("INVALID GAME SETTINGS");
-  return { status: "waiting", createdAt: now, players: { black: uid }, settings: { ...settings }, clock: initialClock(settings), moveLog: [], rematch: { black: false, white: false, generation: 0 }, game: createGame() };
+  return { status: "waiting", createdAt: now, players: { black: uid }, settings: { ...settings }, clock: initialClock(settings), moveLog: [], rematch: { black: false, white: false, generation: 0 }, countdownEndsAt:0, timeout:{...EMPTY_TIMEOUT}, game: createGame() };
 }
 export function normalizeRoom(value: Room): NormalizedRoom {
   const settings = { ...DEFAULT_SETTINGS, ...(value.settings ?? {}) };
-  return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog: value.moveLog ?? [], rematch: value.rematch ?? { black:false, white:false, generation:0 }, game: { ...value.game, events: value.game.events ?? [] } };
+  return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog: value.moveLog ?? [], rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {
   if (!value) throw new Error("ROOM NOT FOUND");
   const room = normalizeRoom(value);
   if (room.players.black === uid || room.players.white === uid) throw new Error("ALREADY IN THIS ROOM");
   if (room.players.white || room.status !== "waiting") throw new Error("ROOM FULL");
-  return { ...room, players: { ...room.players, white: uid }, status: "playing", clock: { ...room.clock, activeSince: now, running: room.settings.clockEnabled } };
+  const countdownEndsAt=now+COUNTDOWN_MS;
+  return { ...room, players: { ...room.players, white: uid }, status: "playing", countdownEndsAt, timeout:{...EMPTY_TIMEOUT}, clock: { ...room.clock, activeSince: countdownEndsAt, running: room.settings.clockEnabled } };
 }
 function assertMember(room: NormalizedRoom, uid: string): Player {
   if (room.players.black === uid) return "black";
@@ -44,25 +47,30 @@ function assertMember(room: NormalizedRoom, uid: string): Player {
 export function moveRoomState(value: Room, uid: string, revision: number, index: number, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
   if (room.status !== "playing") throw new Error("GAME IS NOT ACTIVE");
+  if(now<room.countdownEndsAt)throw new Error("GAME IS COUNTING DOWN");
+  if(room.timeout.pendingFor)throw new Error("TIMEOUT DECISION PENDING");
   const player = assertMember(room, uid);
   if (player !== room.game.currentPlayer) throw new Error("NOT YOUR TURN");
   if (room.game.revision !== revision) throw new Error("STATE CHANGED — TRY AGAIN");
   const committed = commitElapsed(room.clock, player, now);
-  if (committed.clock[player === "black" ? "blackRemainingMs" : "whiteRemainingMs"] <= 0)
-    throw new Error("TIME EXPIRED");
+  const clockKey=player === "black" ? "blackRemainingMs" : "whiteRemainingMs";
+  if (!room.timeout.continueWithoutClock && room.settings.clockEnabled && committed.clock[clockKey] <= 0)
+    return{...room,game:{...room.game,revision:room.game.revision+1,events:[]},timeout:{pendingFor:player,continueWithoutClock:false},clock:{...committed.clock,[clockKey]:0,running:false}};
   const game = playMove(room.game, player, index);
   const finished = Boolean(game.winner);
-  return { ...room, game, moveLog: [...room.moveLog, { index, player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: room.settings.clockEnabled && !finished } };
+  return { ...room, game, moveLog: [...room.moveLog, { index, player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: room.settings.clockEnabled && !room.timeout.continueWithoutClock && !finished } };
 }
 export function undoRoomState(value: Room, uid: string, revision: number = value.game.revision, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
   if (room.status !== "playing" || room.game.winner) throw new Error("GAME IS NOT ACTIVE");
+  if(now<room.countdownEndsAt)throw new Error("GAME IS COUNTING DOWN");
+  if(room.timeout.pendingFor)throw new Error("TIMEOUT DECISION PENDING");
   assertMember(room, uid);
   if (room.game.revision !== revision) throw new Error("STATE CHANGED — TRY AGAIN");
   if (!mayUndo(room.game, room.moveLog, room.settings.undoMode)) throw new Error("UNDO IS NOT AVAILABLE");
   const records = room.moveLog.slice(0, -1);
   const rebuilt = replayMoves(room.settings, records, room.game.revision + 1);
-  return { ...room, moveLog: records, game: rebuilt.game, clock: { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: room.settings.clockEnabled } };
+  return { ...room, moveLog: records, game: rebuilt.game, clock: { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: room.settings.clockEnabled && !room.timeout.continueWithoutClock } };
 }
 export function timeoutRoomState(value: Room, uid: string, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
@@ -72,7 +80,14 @@ export function timeoutRoomState(value: Room, uid: string, now = Date.now()): No
   const committed = commitElapsed(room.clock, timedOut, now);
   const key = timedOut === "black" ? "blackRemainingMs" : "whiteRemainingMs";
   if (committed.clock[key] > 0) throw new Error("TIME REMAINS");
-  return { ...room, status: "finished", game: { ...room.game, winner: other(timedOut), revision: room.game.revision + 1, events: [`${timedOut.toUpperCase()} TIMEOUT`] }, clock: { ...committed.clock, [key]: 0, running: false } };
+  return { ...room, game: { ...room.game, revision: room.game.revision + 1, events: [] }, timeout:{pendingFor:timedOut,continueWithoutClock:false}, clock: { ...committed.clock, [key]: 0, running: false } };
+}
+export function resolveTimeoutRoomState(value:Room,uid:string,continueGame:boolean):NormalizedRoom{
+  const room=normalizeRoom(value),player=assertMember(room,uid),timedOut=room.timeout.pendingFor;
+  if(!timedOut)throw new Error("NO TIMEOUT DECISION PENDING");
+  if(player!==timedOut)throw new Error("ONLY TIMED OUT PLAYER MAY DECIDE");
+  if(continueGame)return{...room,timeout:{pendingFor:"",continueWithoutClock:true},clock:{...room.clock,running:false},game:{...room.game,revision:room.game.revision+1,events:[]}};
+  return{...room,status:"finished",timeout:{...EMPTY_TIMEOUT},clock:{...room.clock,running:false},game:{...room.game,winner:other(timedOut),revision:room.game.revision+1,events:[`${timedOut.toUpperCase()} TIMEOUT`]}};
 }
 export function rematchRoomState(value: Room, uid: string, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
@@ -81,7 +96,8 @@ export function rematchRoomState(value: Room, uid: string, now = Date.now()): No
   const rematch = { ...room.rematch, [player]: true };
   if (!rematch.black || !rematch.white) return { ...room, game:{...room.game,revision:room.game.revision+1}, rematch };
   const game=createGame(); game.revision=room.game.revision+1;
-  return { ...room, status: "playing", game, clock: initialClock(room.settings, now, room.settings.clockEnabled), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
+  const countdownEndsAt=now+COUNTDOWN_MS;
+  return { ...room, status: "playing", game, countdownEndsAt, timeout:{...EMPTY_TIMEOUT},clock: initialClock(room.settings, countdownEndsAt, room.settings.clockEnabled), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
 }
 async function transaction(code: string, mutate: (room: Room, uid: string) => Room) {
   const { db, uid } = await connection(); let failure = "ROOM NOT FOUND";
@@ -104,4 +120,5 @@ export async function joinRoom(code: string) {
 export const submitMove=(code:string,revision:number,index:number,now=Date.now())=>transaction(code,(r,u)=>moveRoomState(r,u,revision,index,now));
 export const submitUndo=(code:string,revision:number,now=Date.now())=>transaction(code,(r,u)=>undoRoomState(r,u,revision,now));
 export const submitTimeout=(code:string,now=Date.now())=>transaction(code,(r,u)=>timeoutRoomState(r,u,now));
+export const submitTimeoutDecision=(code:string,continueGame:boolean)=>transaction(code,(r,u)=>resolveTimeoutRoomState(r,u,continueGame));
 export const requestRematch=(code:string,now=Date.now())=>transaction(code,(r,u)=>rematchRoomState(r,u,now));

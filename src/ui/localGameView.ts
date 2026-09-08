@@ -5,6 +5,8 @@ import { boardWithCoordinates, updateBoard, type BoardPresentation } from "./boa
 import { setStatusText } from "./motion";
 import type { ClockState, GameSettings } from "../game/session";
 import { settingsSummary, updateClocks } from "./clockView";
+import { updateCountdown, updateTimeoutDialog } from "./timingView";
+import type { TimeoutState } from "../game/session";
 
 export interface LocalGamePresentation extends BoardPresentation {
   canUndo: boolean;
@@ -13,6 +15,9 @@ export interface LocalGamePresentation extends BoardPresentation {
   clock?: ClockState;
   settings?: GameSettings;
   now?: number;
+  countdownEndsAt?: number;
+  timeout?: TimeoutState;
+  timeoutDecision?: (continueGame:boolean) => void;
 }
 
 export function localGameView(
@@ -36,13 +41,15 @@ export function localGameView(
     root.dataset.mode = "local";
     delete root.dataset.room;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><p class="local-title"></p><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="check" hidden></p><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back"></button><button class="text-button undo" disabled></button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><p class="local-title"></p><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="check" hidden></p><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back"></button><button class="text-button undo" disabled></button></div><p class="game-error" role="alert" hidden></p><div class="countdown-overlay" hidden aria-live="assertive"></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
     root
       .querySelector(".board-slot")!
       .append(boardWithCoordinates(game, false, move, finalPresentation));
   }
   root.querySelector<HTMLElement>(".local-title")!.textContent = t("local.title");
-  if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,presentation.now??Date.now(),"black","white",presentation.settings.clockEnabled)}
+  const now=presentation.now??Date.now(),countingDown=updateCountdown(root,presentation.countdownEndsAt??0,now),timeout=presentation.timeout??{pendingFor:"",continueWithoutClock:false};
+  updateTimeoutDialog(root,timeout,Boolean(timeout.pendingFor),presentation.timeoutDecision);
+  if(presentation.clock&&presentation.settings){root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(presentation.settings);updateClocks(root,presentation.clock,game.currentPlayer,now,"black","white",presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor)}
   const status = root.querySelector<HTMLElement>(".turn-status")!;
   const timeoutEvent=game.events.find(event=>event.endsWith(" TIMEOUT"));
   const result = game.winner
@@ -65,7 +72,7 @@ export function localGameView(
   updateBoard(
     root.querySelector<HTMLElement>(".board")!,
     game,
-    !busy && !game.winner,
+    !busy && !game.winner && !countingDown && !timeout.pendingFor,
     move,
     finalPresentation,
   );
@@ -81,10 +88,10 @@ export function localGameView(
   back.textContent = t("game.back");
   back.onclick = leave;
   const rematch=root.querySelector<HTMLButtonElement>(".rematch")!;
-  rematch.hidden=!game.winner; rematch.textContent=t("game.rematch"); rematch.onclick=()=>presentation.rematch?.();
+  rematch.hidden=!game.winner; rematch.disabled=Boolean(timeout.pendingFor);rematch.textContent=t("game.rematch"); rematch.onclick=()=>presentation.rematch?.();
   const undo = root.querySelector<HTMLButtonElement>(".undo")!;
   undo.textContent = t("game.undo");
-  undo.disabled = !presentation.canUndo || busy || Boolean(game.winner);
+  undo.disabled = !presentation.canUndo || busy || Boolean(game.winner) || countingDown || Boolean(timeout.pendingFor);
   undo.onclick = () => {
     if (!undo.disabled) presentation.undo();
   };

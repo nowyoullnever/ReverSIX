@@ -5,10 +5,12 @@ import { boardWithCoordinates, updateBoard, type BoardPresentation } from "./boa
 import { replayMotion, setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
 import { settingsSummary, updateClocks } from "./clockView";
+import { updateCountdown, updateTimeoutDialog } from "./timingView";
 export interface GamePresentation extends BoardPresentation {
   undo?: () => void;
   canUndo?: boolean;
   rematch?: () => void;
+  timeoutDecision?: (continueGame:boolean) => void;
   now?: number;
 }
 const lastTurn = new WeakMap<HTMLElement, Player>();
@@ -26,6 +28,7 @@ export function gameView(
   presentation: GamePresentation = {},
 ) {
   room=normalizeRoom(room);
+  const timeout=room.timeout!,countdownEndsAt=room.countdownEndsAt!;
   const s = room.game;
   const winningPlayer =
     s.winner === "black" || s.winner === "white" ? s.winner : undefined;
@@ -37,7 +40,7 @@ export function gameView(
   if (root.dataset.room !== code || !root.querySelector(".board")) {
     root.dataset.room = code;
     root.innerHTML =
-      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p>';
+      '<h1>REVERSIX!</h1><div class="room"><span></span><button class="copy">COPY</button></div><p class="game-settings-summary"></p><h2 class="turn-status" role="status"></h2><p class="result-detail" hidden></p><p class="check" hidden></p><div class="game-layout clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="you"></p><p class="notice" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="back">BACK TO LOBBY</button><button class="text-button undo" disabled>UNDO</button></div><p class="game-error" role="alert" hidden></p><div class="countdown-overlay" hidden aria-live="assertive"></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
     root
       .querySelector(".board-slot")!
       .append(boardWithCoordinates(s, false, move, finalPresentation));
@@ -45,7 +48,10 @@ export function gameView(
   root.querySelector(".room span")!.textContent = t("game.room", { code });
   root.querySelector<HTMLElement>(".game-settings-summary")!.textContent=settingsSummary(room.settings!);
   const opponent:Player=player === "black" ? "white" : "black";
-  updateClocks(root,room.clock!,s.currentPlayer,presentation.now??Date.now(),player,opponent,room.settings!.clockEnabled);
+  const now=presentation.now??Date.now();
+  const countingDown=room.status==="playing"&&updateCountdown(root,countdownEndsAt,now);
+  updateTimeoutDialog(root,timeout,timeout.pendingFor===player,presentation.timeoutDecision);
+  updateClocks(root,room.clock!,s.currentPlayer,now,player,opponent,room.settings!.clockEnabled&&!timeout.continueWithoutClock,!countingDown&&!timeout.pendingFor);
   const copy = root.querySelector<HTMLButtonElement>(".copy")!;
   if (!copyTimers.has(copy)) copy.textContent = t("game.copy");
   copy.onclick = () =>
@@ -62,9 +68,11 @@ export function gameView(
   const resultText = s.winner
     ? s.winner === "draw"
       ? t("game.draw")
+      : timeoutEvent
+        ? `${t(`game.${timeoutEvent.startsWith("BLACK")?"blackTimeout":"whiteTimeout"}`)} · ${t(`local.${s.winner}Wins`)}`
       : s.winner === player
-        ? `${timeoutEvent ? t(`game.${timeoutEvent.startsWith("BLACK")?"blackTimeout":"whiteTimeout"}`)+" · " : ""}${t("game.win")}`
-        : `${timeoutEvent ? t(`game.${timeoutEvent.startsWith("BLACK")?"blackTimeout":"whiteTimeout"}`)+" · " : ""}${t("game.lose")}`
+        ? t("game.win")
+        : t("game.lose")
     : undefined;
   setStatusText(
     status,
@@ -97,6 +105,8 @@ export function gameView(
     connected &&
       opponentOnline &&
       !busy &&
+      !countingDown &&
+      !timeout.pendingFor &&
       room.status === "playing" &&
       s.currentPlayer === player,
     move,
@@ -119,13 +129,13 @@ export function gameView(
   back.textContent = t("game.back");
   back.onclick = leave;
   const rematch=root.querySelector<HTMLButtonElement>(".rematch")!;
-  rematch.hidden=!s.winner; rematch.disabled=Boolean(room.rematch![player]);
+  rematch.hidden=!s.winner; rematch.disabled=Boolean(room.rematch![player])||Boolean(timeout.pendingFor);
   rematch.textContent=room.rematch![player]?t("game.rematchWaiting"):t("game.rematch");
   rematch.onclick=()=>presentation.rematch?.();
   const undo = root.querySelector<HTMLButtonElement>(".undo")!;
   undo.textContent = t("game.undo");
   undo.disabled =
-    !presentation.canUndo || busy || !connected || !opponentOnline;
+    !presentation.canUndo || busy || !connected || !opponentOnline || countingDown || Boolean(timeout.pendingFor);
   undo.onclick = () => {
     if (!undo.disabled) presentation.undo?.();
   };

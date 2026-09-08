@@ -4,6 +4,7 @@ import { createGame } from "../src/game/gameState";
 import { emptyBoard } from "../src/game/board";
 import { getMoveOptions } from "../src/game/rules";
 import { LocalGameSession } from "../src/local/localGame";
+import { DEFAULT_SETTINGS } from "../src/game/session";
 import { setLocale } from "../src/i18n/i18n";
 import { localGameView } from "../src/ui/localGameView";
 import { openNewGameDialog } from "../src/ui/newGameDialog";
@@ -21,7 +22,7 @@ beforeEach(() => {
 afterEach(() => document.body.replaceChildren());
 
 it("uses the shared engine for the opening and two-move turn sequence", () => {
-  const local = new LocalGameSession();
+  const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   expect(local.game.board.filter(Boolean)).toHaveLength(4);
   expect(local.game.currentPlayer).toBe("black");
   expect(local.game.moveNumberInTurn).toBe(1);
@@ -38,7 +39,7 @@ it("uses the shared engine for the opening and two-move turn sequence", () => {
 });
 
 it("undoes one placement at a time and restores the complete local snapshot", () => {
-  const local = new LocalGameSession();
+  const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   local.play(34);
   const beforeWhite = structuredClone(local.game);
   const previousMarker = local.lastPlaced;
@@ -54,7 +55,7 @@ it("undoes one placement at a time and restores the complete local snapshot", ()
 });
 
 it("uses the shared EXACT SIX engine in a local session", () => {
-  const local = new LocalGameSession();
+  const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   const board = emptyBoard();
   [40, 41, 42, 43, 44].forEach((index) => (board[index] = "black"));
   board[55] = "white";
@@ -90,6 +91,8 @@ it("renders local play without room, connection, copy, or chat UI", () => {
   root.querySelector<HTMLButtonElement>(".back")!.click();
   expect(leave).toHaveBeenCalledOnce();
 });
+
+it("shows the local timeout decision and locks the board",()=>{const session=new LocalGameSession({...DEFAULT_SETTINGS,initialTimeMs:60000},0);session.tick(63001);const root=document.createElement("main"),decision=vi.fn();localGameView(root,session.game,false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),clock:session.clock,settings:session.settings,now:63001,countdownEndsAt:session.countdownEndsAt,timeout:session.timeout,timeoutDecision:decision});expect(root.querySelector(".timeout-dialog")?.hasAttribute("open")).toBe(true);expect(root.querySelector(".timeout-dialog")?.textContent).toContain("CONTINUE?");expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);root.querySelectorAll<HTMLButtonElement>(".timeout-actions button")[1].click();expect(decision).toHaveBeenCalledWith(false)});
 
 it("shows objective local CHECK and color-based winner text with SIX lines", () => {
   const checking = createGame();
