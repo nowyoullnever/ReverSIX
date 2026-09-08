@@ -2,11 +2,13 @@ import { openTutorial } from "./tutorial";
 import { setStatusText } from "./motion";
 import { t } from "../i18n/i18n";
 import { openSettings } from "./settings";
+import { openNewGameDialog } from "./newGameDialog";
 export type LobbyActivity = "creating" | "joining" | "reconnecting" | undefined;
 export function lobby(
   root: HTMLElement,
   configured: boolean,
   busy: boolean,
+  local: () => void,
   create: () => void,
   join: (code: string) => void,
   activity?: LobbyActivity,
@@ -14,24 +16,13 @@ export function lobby(
   setSound: (value:boolean) => void = () => {},
   changed: () => void = () => {},
 ) {
-  root.innerHTML = `<h1>REVERSIX!</h1><section class="lobby"><button id="create">${t("lobby.create")}</button><form><label for="code">${t("lobby.joinLabel")}</label><div class="join-row"><input id="code" name="code" aria-label="${t("lobby.code")}" placeholder="${t("lobby.code")}" minlength="6" maxlength="6" pattern="[A-HJ-NP-Za-hj-np-z2-9]{6}" autocomplete="off" autocapitalize="characters" spellcheck="false" required><button type="submit">${t("lobby.join")}</button></div></form></section>`;
-  root.querySelector<HTMLButtonElement>("#create")!.onclick = create;
-  root.querySelector("form")!.onsubmit = (e) => {
-    e.preventDefault();
-    join(
-      root.querySelector<HTMLInputElement>("input")!.value.trim().toUpperCase(),
-    );
-  };
-  root
-    .querySelectorAll<HTMLInputElement | HTMLButtonElement>("input,button")
-    .forEach((el) => (el.disabled = busy || !configured));
-  if (!configured) {
-    const note = document.createElement("p");
-    note.className = "note";
-    note.textContent =
-      t("lobby.unconfigured");
-    root.append(note);
-  }
+  delete root.dataset.mode;
+  delete root.dataset.room;
+  root.innerHTML = `<h1>REVERSIX!</h1><section class="lobby"><button id="new-game">${t("lobby.newGame")}</button></section>`;
+  const newGame = root.querySelector<HTMLButtonElement>("#new-game")!;
+  newGame.disabled = busy;
+  newGame.onclick = () =>
+    openNewGameDialog(configured, busy, { local, create, join });
   const help = document.createElement("button");
   help.className = "how-to-play";
   help.textContent = t("lobby.how");

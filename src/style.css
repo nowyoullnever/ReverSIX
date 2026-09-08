@@ -73,6 +73,41 @@ button:not(.cell):not(:disabled):hover {
   width: 100%;
   min-height: 54px;
 }
+.new-game-dialog {
+  position: relative;
+  width: min(calc(100vw - 32px), 440px);
+  padding: 30px 32px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  text-align: center;
+}
+.new-game-dialog::backdrop { background: rgb(255 255 255 / .85); }
+.new-game-dialog h2 { margin: 0 44px 28px; font-size: 1.2rem; }
+.new-game-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.new-game-options { display: grid; gap: 14px; }
+.new-game-options button { width: 100%; min-height: 50px; }
+.new-game-options button:disabled { opacity: .38; }
+.new-game-dialog .note { margin-top: 22px; }
+.new-game-join-form { margin-top: 0; }
+.new-game-back {
+  margin-top: 18px;
+  min-height: 44px;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 form {
   margin-top: 38px;
 }
@@ -102,6 +137,12 @@ input {
   justify-content: center;
   gap: 16px;
 }
+.local-title {
+  margin: -12px 0 18px;
+  font-size: .875rem;
+  letter-spacing: .08em;
+}
+.local-count { margin: 18px 0 4px; font-size: .875rem; }
 .room span {
   font-size: 1.4rem;
   user-select: all;

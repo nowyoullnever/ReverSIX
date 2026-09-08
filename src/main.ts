@@ -12,11 +12,13 @@ import { watchRoom } from "./online/sync";
 import { lobby } from "./ui/lobby";
 import type { LobbyActivity } from "./ui/lobby";
 import { gameView } from "./ui/gameView";
+import { localGameView } from "./ui/localGameView";
 import { getSixLines } from "./game/six";
 import { Toast } from "./ui/toast";
-import { RoomPresenter } from "./ui/presenter";
+import { RoomPresenter, MOVE_ANIMATION_MS } from "./ui/presenter";
 import {
   PresenceEvents,
+  gameEvents,
   roomEvents,
   compareBoards,
   moveTransition,
@@ -28,6 +30,7 @@ import { getLocale, localizeError, setLocale } from "./i18n/i18n";
 import { sendQuickChat, watchQuickChat, type QuickChatMessage } from "./online/quickChat";
 import type { ChatPresetId } from "./online/chatPresets";
 import { isQuickChatCoolingDown, QUICK_CHAT_COOLDOWN_MS } from "./online/chatCooldown";
+import { LocalGameSession } from "./local/localGame";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -40,6 +43,9 @@ let presence: string[] = [],
   error = "";
 let subscriptionGeneration = 0;
 let history: MoveHistory | undefined;
+let localGame: LocalGameSession | null = null;
+let localLocked = false;
+let localTimer: ReturnType<typeof setTimeout> | undefined;
 let quickChatMessages: QuickChatMessage[] = [];
 let quickChatError = "";
 let quickChatStop: (() => void) | undefined;
@@ -106,7 +112,23 @@ const presenter = new RoomPresenter(
   () => render(),
 );
 function render(change?: BoardChange) {
-  if (room) {
+  if (localGame) {
+    localGameView(
+      root,
+      localGame.game,
+      localLocked,
+      localMove,
+      leaveLocal,
+      {
+        change,
+        lastPlaced: localGame.lastPlaced,
+        six,
+        defeatSequence: defeatSequenceRevision === localGame.game.revision,
+        canUndo: localGame.canUndo(),
+        undo: undoLocal,
+      },
+    );
+  } else if (room) {
     const player = room.players.black === uid ? "black" : "white";
     gameView(
       root,
@@ -164,6 +186,7 @@ function render(change?: BoardChange) {
       root,
       firebaseConfigured,
       busy,
+      startLocalGame,
       () => void (audio.unlock(), action(async () => enter(await createRoom()), "creating")),
       (value) =>
         void (audio.unlock(), action(async () => {
@@ -188,6 +211,66 @@ function render(change?: BoardChange) {
     p.textContent = localizeError(error);
     root.append(p);
   }
+}
+function startLocalGame() {
+  localGame = new LocalGameSession();
+  history = undefined;
+  lastPlaced = -1;
+  six = [];
+  defeatSequenceRevision = -1;
+  error = "";
+  toast.clear();
+  sessionStorage.removeItem("reversix-room");
+  render();
+}
+function localMove(index: number) {
+  if (!localGame || localLocked || localGame.game.winner) return;
+  void audio.unlock();
+  const { before, after, change } = localGame.play(index);
+  audio.playChange(change);
+  toast.show(gameEvents(before, after));
+  six = after.checkBy && !after.winner
+    ? [...new Set(getSixLines(after.board, after.checkBy).flat())]
+    : [];
+  if (
+    !before.winner &&
+    after.winner &&
+    after.events.includes("CHECK DEFENSE FAILED")
+  )
+    defeatSequenceRevision = after.revision;
+  localLocked =
+    !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  render(change);
+  if (localLocked) {
+    clearTimeout(localTimer);
+    localTimer = setTimeout(() => {
+      localLocked = false;
+      localTimer = undefined;
+      render();
+    }, MOVE_ANIMATION_MS);
+  }
+}
+function undoLocal() {
+  if (!localGame || localLocked || !localGame.canUndo()) return;
+  localGame.undo();
+  six = localGame.game.checkBy && !localGame.game.winner
+    ? [...new Set(getSixLines(localGame.game.board, localGame.game.checkBy).flat())]
+    : [];
+  defeatSequenceRevision = -1;
+  toast.clear();
+  render();
+}
+function leaveLocal() {
+  clearTimeout(localTimer);
+  localTimer = undefined;
+  localLocked = false;
+  localGame = null;
+  six = [];
+  lastPlaced = -1;
+  defeatSequenceRevision = -1;
+  toast.clear();
+  error = "";
+  render();
 }
 async function action(fn: () => Promise<unknown>, activity?: LobbyActivity) {
   if (busy || presenter.locked) return;

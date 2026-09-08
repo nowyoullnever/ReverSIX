@@ -1,4 +1,4 @@
-import type { Board } from "../game/types";
+import type { Board, GameState } from "../game/types";
 import type { Room } from "../online/rooms";
 
 export interface BoardChange {
@@ -32,15 +32,20 @@ export function roomEvents(before: Room | null, after: Room): string[] {
   const events: string[] = [];
   if (!before.players.white && after.players.white)
     events.push("PLAYER JOINED");
-  if (after.game.revision <= before.game.revision) return events;
-  if (compareBoards(before.game.board, after.game.board).removed.length)
+  events.push(...gameEvents(before.game, after.game));
+  return events;
+}
+export function gameEvents(before: GameState, after: GameState): string[] {
+  const events: string[] = [];
+  if (after.revision <= before.revision) return events;
+  if (compareBoards(before.board, after.board).removed.length)
     return events;
-  if (!after.game.winner && before.game.checkBy !== after.game.checkBy) {
-    if (before.game.checkBy)
-      events.push(after.game.checkBy ? "COUNTER CHECK!" : "CHECK DEFENDED");
-    else if (after.game.checkBy) events.push("CHECK!");
+  if (!after.winner && before.checkBy !== after.checkBy) {
+    if (before.checkBy)
+      events.push(after.checkBy ? "COUNTER CHECK!" : "CHECK DEFENDED");
+    else if (after.checkBy) events.push("CHECK!");
   }
-  events.push(...after.game.events.filter((event) => event.endsWith(" PASS")));
+  events.push(...after.events.filter((event) => event.endsWith(" PASS")));
   return events;
 }
 

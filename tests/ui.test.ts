@@ -172,7 +172,7 @@ it("uses accessible fixed-width animated dots for waiting and reconnecting state
 });
 it("shows the lobby activity status with shared animated dots", () => {
   const root = document.createElement("main");
-  lobby(root, true, true, vi.fn(), vi.fn(), "creating");
+  lobby(root, true, true, vi.fn(), vi.fn(), vi.fn(), "creating");
   expect(root.querySelector(".lobby-status")?.textContent).toBe("CREATING ROOM");
   expect(root.querySelector(".lobby-status .animated-dots")?.getAttribute("aria-hidden")).toBe("true");
 });
@@ -307,13 +307,11 @@ it("marks a live defense-failure presentation for one-time SIX sequencing", () =
   expect(root.querySelector(".result-detail")?.classList.contains("result-enter")).toBe(true);
   expect(root.querySelector(".defeat-six-line")?.getAttribute("pathLength")).toBe("1");
 });
-it("without Firebase, lobby explains setup and disables online controls", () => {
+it("without Firebase, lobby keeps NEW GAME available", () => {
   const root = document.createElement("main");
-  lobby(root, false, false, vi.fn(), vi.fn());
-  expect(root.textContent).toContain("ONLINE PLAY IS NOT CONFIGURED");
-  expect(
-    root.querySelectorAll("#create:not(:disabled), form button:not(:disabled)"),
-  ).toHaveLength(0);
+  lobby(root, false, false, vi.fn(), vi.fn(), vi.fn());
+  expect(root.querySelector<HTMLButtonElement>("#new-game")?.disabled).toBe(false);
+  expect(root.querySelector("input, form")).toBeNull();
   expect(root.textContent).not.toContain("COMPUTER");
   expect(root.textContent).not.toContain("REVERSI × SIX");
 });
