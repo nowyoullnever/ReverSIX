@@ -1,9 +1,16 @@
 import { expect, it } from "vitest";
 import { LocalGameSession } from "../src/local/localGame";
-import { COMPUTER_DEFAULT_SETTINGS, DEFAULT_SETTINGS, LOCAL_DEFAULT_SETTINGS, ROOM_DEFAULT_SETTINGS, countdownValue, validSettings } from "../src/game/session";
+import { COMPUTER_DEFAULT_SETTINGS, DEFAULT_SETTINGS, LOCAL_DEFAULT_SETTINGS, ROOM_DEFAULT_SETTINGS, countdownRenderState, countdownValue, validSettings } from "../src/game/session";
 import { getMoveOptions } from "../src/game/rules";
 
 it("maps a shared countdown deadline to 3, 2, 1, then zero",()=>{expect([0,999,1000,1999,2000,2999,3000].map(now=>countdownValue(3000,now))).toEqual([3,3,2,2,1,1,0])});
+it("renders once when an online countdown ends even without a running clock",()=>{
+  expect(countdownRenderState(4000,1000,false)).toEqual({active:true,shouldRender:true});
+  expect(countdownRenderState(4000,2000,true)).toEqual({active:true,shouldRender:true});
+  expect(countdownRenderState(4000,3000,true)).toEqual({active:true,shouldRender:true});
+  expect(countdownRenderState(4000,4000,true)).toEqual({active:false,shouldRender:true});
+  expect(countdownRenderState(4000,4001,false)).toEqual({active:false,shouldRender:false});
+});
 it("uses five-minute defaults with clocks enabled only for local and rooms",()=>{
   expect(LOCAL_DEFAULT_SETTINGS).toMatchObject({initialTimeMs:300000,clockEnabled:true});
   expect(ROOM_DEFAULT_SETTINGS).toMatchObject({initialTimeMs:300000,clockEnabled:true});

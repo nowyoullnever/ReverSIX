@@ -29,6 +29,10 @@ export function countdownValue(endsAt: number, now: number) {
   const remaining=endsAt-now;
   return remaining>0?Math.min(3,Math.ceil(remaining/1_000)):0;
 }
+export function countdownRenderState(endsAt:number,now:number,wasActive:boolean) {
+  const active=now<endsAt;
+  return { active, shouldRender:active||wasActive!==active };
+}
 export const BASE_DEFAULT_SETTINGS: Omit<GameSettings,"clockEnabled"> = {
   initialTimeMs: 300_000,
   undoMode: "all",

@@ -32,7 +32,7 @@ import { AudioManager } from "./audio/audio";
 import { BgmManager } from "./audio/bgm";
 import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
-import { mayUndo, remainingAt, type GameSettings } from "./game/session";
+import { countdownRenderState, mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
 import type { ComputerDifficulty } from "./ai/difficulty";
@@ -59,6 +59,7 @@ let computerMode:{humanSide:Player;computerSide:Player;difficulty:ComputerDiffic
 let serverOffset=0;
 let stopOffset:(()=>void)|undefined;
 let timeoutPending=false;
+let onlineCountdownActive=false;
 const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
   six: number[] = [];
@@ -380,6 +381,7 @@ function leave() {
   room = null;
   code = "";
   connected = false;
+  onlineCountdownActive = false;
   presence = [];
   sessionStorage.removeItem("reversix-room");
   error = "";
@@ -441,7 +443,9 @@ setInterval(()=>{
   if(localGame){const before=localGame.game.winner;if(localGame.tick()) {cancelComputerWork(false);defeatSequenceRevision=-1;toast.show(localGame.game.events);if(!before&&localGame.game.winner)showResultOverlay(localGame.game.revision)} render();queueComputerMove();return}
   if(room?.status==="playing"){
     const now=serverNow();
-    if(now<room.countdownEndsAt!){render();return}
+    const countdown=countdownRenderState(room.countdownEndsAt!,now,onlineCountdownActive);
+    onlineCountdownActive=countdown.active;
+    if(countdown.shouldRender){render();if(countdown.active)return}
     if(room.clock!.running&&!room.timeout?.pendingFor&&!room.timeout?.continueWithoutClock){
       const left=remainingAt(room.clock!,room.game.currentPlayer,now);
       if(left<=0&&!timeoutPending){timeoutPending=true;void submitTimeout(code,now).catch(()=>{}).finally(()=>timeoutPending=false)}
