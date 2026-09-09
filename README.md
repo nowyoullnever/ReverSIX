@@ -63,7 +63,7 @@ src/online/    Firebase 초기화, 방 트랜잭션, 실시간 구독, 접속 �
 src/ui/        로비, 보드, 애니메이션, toast, 튜토리얼, 상태 표시
 src/main.ts    화면과 온라인 모듈 연결
 tests/         규칙·방 로직 및 Database Rules/동기화 테스트
-public/fonts/  사용자 ZIP에서 가져온 MaruBuri Regular OTF와 라이선스
+public/fonts/  Dongle Regular TTF와 SIL Open Font License
 ```
 
 엔진의 주요 함수는 `createGame`, `getLegalMoves`, `getFlips`, `applyMove`, `getSixLines`, `getMoveOptions`, `playMove`, `settlePasses`입니다. Firebase나 DOM에 의존하지 않습니다. 보드는 길이 100 배열이며 빈칸은 `''`, 돌은 `black`/`white`입니다. 위치는 `row * 10 + column`입니다.
@@ -122,9 +122,8 @@ npm run test:online
 
 ## 글꼴 및 참고
 
-사용자가 제공한 `maruburi.zip` 안의 `MaruBuriOTF.zip`에서 `MaruBuri-Regular.otf`를 추출해 전체 기본 글꼴로 적용했습니다. 원본 ZIP에는 별도 라이선스 파일이 없어 네이버 공식 라이선스 안내를 함께 보존했습니다.
+전체 기본 글꼴은 [Dongle Regular](https://github.com/yangheeryu/Dongle)이며, `public/fonts/OFL-Dongle.txt`에 SIL Open Font License 1.1을 포함합니다.
 
 - [Firebase 트랜잭션](https://firebase.google.com/docs/database/web/read-and-write)
 - [Firebase 접속 상태](https://firebase.google.com/docs/database/web/offline-capabilities)
 - [Vite GitHub Pages 배포](https://vite.dev/guide/static-deploy)
-- [네이버 글꼴 라이선스](https://help.naver.com/service/30016/contents/18088?osType=PC)

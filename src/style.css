@@ -1,6 +1,6 @@
 @font-face {
-  font-family: MaruBuri;
-  src: url("/fonts/MaruBuri-Regular.otf") format("opentype");
+  font-family: Dongle;
+  src: url("/fonts/Dongle-Regular.ttf") format("truetype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -35,7 +35,7 @@ html[data-theme="dark"] {
   color-scheme:dark;
 }
 :root {
-  font-family: MaruBuri, Georgia, serif;
+  font-family: Dongle, sans-serif;
   color: var(--text);
   background: var(--page-bg);
   font-synthesis: none;
