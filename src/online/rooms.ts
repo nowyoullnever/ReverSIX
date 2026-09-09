@@ -2,7 +2,7 @@ import { get, onValue, ref, runTransaction, type Database } from "firebase/datab
 import { createGame, playMove } from "../game/gameState";
 import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, commitElapsed, initialClock, mayUndo, replayMoves, validSettings, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
 import { other, type Player } from "../game/types";
-import { connection } from "./firebase";
+import { connection, onlineOperation } from "./firebase";
 
 export interface RematchState { black: boolean; white: boolean; generation: number }
 export interface Room {
@@ -115,27 +115,33 @@ export function changeRoomSettingsState(value:Room,uid:string,settings:GameSetti
   if(!validSettings(settings))throw new Error("INVALID GAME SETTINGS");
   return {...room,nextSettings:{...settings},rematch:{...room.rematch,black:false,white:false}};
 }
-async function transaction(code: string, mutate: (room: Room, uid: string) => Room) {
-  const { db, uid } = await connection(); let failure = "ROOM NOT FOUND";
-  const result = await runTransaction(ref(db, `rooms/${code}`), current => { if (!current) return; try { return mutate(current, uid); } catch (e) { failure=(e as Error).message; return; } }, { applyLocally:false });
-  if (!result.committed) throw new Error(failure);
-  return normalizeRoom(result.snapshot.val());
+async function transaction(operation:string, code: string, mutate: (room: Room, uid: string) => Room) {
+  return onlineOperation(operation, async () => {
+    const { db, uid } = await connection(); let failure = "ROOM NOT FOUND";
+    const result = await runTransaction(ref(db, `rooms/${code}`), current => { if (!current) return; try { return mutate(current, uid); } catch (e) { failure=(e as Error).message; return; } }, { applyLocally:false });
+    if (!result.committed) throw new Error(failure);
+    return normalizeRoom(result.snapshot.val());
+  });
 }
-function serverNow(db:Database):Promise<number>{return new Promise((resolve,reject)=>onValue(ref(db,".info/serverTimeOffset"),snap=>resolve(Date.now()+(snap.val()??0)),reject,{onlyOnce:true}))}
+function serverNow(db:Database):Promise<number>{return onlineOperation("server time offset",()=>new Promise((resolve,reject)=>onValue(ref(db,".info/serverTimeOffset"),snap=>resolve(Date.now()+(snap.val()??0)),reject,{onlyOnce:true})))}
 export async function createRoom(settings: GameSettings = DEFAULT_SETTINGS) {
-  const { db, uid } = await connection();
-  const now=await serverNow(db);
-  for (let attempt=0; attempt<10; attempt++) { const code=randomCode(); const result=await runTransaction(ref(db,`rooms/${code}`), current=>current?undefined:newRoom(uid,settings,now),{applyLocally:false}); if(result.committed)return code; }
-  throw new Error("COULD NOT CREATE ROOM — TRY AGAIN");
+  return onlineOperation("create room",async()=>{
+    const { db, uid } = await connection();
+    const now=await serverNow(db);
+    for (let attempt=0; attempt<10; attempt++) { const code=randomCode(); const result=await runTransaction(ref(db,`rooms/${code}`), current=>current?undefined:newRoom(uid,settings,now),{applyLocally:false}); if(result.committed)return code; }
+    throw new Error("COULD NOT CREATE ROOM — TRY AGAIN");
+  });
 }
 export async function joinRoom(code: string) {
   if (!CODE_PATTERN.test(code)) throw new Error("ENTER A VALID 6-CHARACTER CODE");
-  const { db, uid }=await connection(); const roomRef=ref(db,`rooms/${code}`); const snapshot=await get(roomRef); const now=await serverNow(db); joinRoomState(snapshot.val(),uid,now); let failure="ROOM FULL";
-  const result=await runTransaction(roomRef,current=>{try{return joinRoomState(current??snapshot.val(),uid,now)}catch(e){failure=(e as Error).message;return}},{applyLocally:false}); if(!result.committed)throw new Error(failure);
+  return onlineOperation("join room",async()=>{
+    const { db, uid }=await connection(); const roomRef=ref(db,`rooms/${code}`); const snapshot=await get(roomRef); const now=await serverNow(db); joinRoomState(snapshot.val(),uid,now); let failure="ROOM FULL";
+    const result=await runTransaction(roomRef,current=>{try{return joinRoomState(current??snapshot.val(),uid,now)}catch(e){failure=(e as Error).message;return}},{applyLocally:false}); if(!result.committed)throw new Error(failure);
+  });
 }
-export const submitMove=(code:string,revision:number,index:number,now=Date.now())=>transaction(code,(r,u)=>moveRoomState(r,u,revision,index,now));
-export const submitUndo=(code:string,revision:number,now=Date.now())=>transaction(code,(r,u)=>undoRoomState(r,u,revision,now));
-export const submitTimeout=(code:string,now=Date.now())=>transaction(code,(r,u)=>timeoutRoomState(r,u,now));
-export const submitTimeoutDecision=(code:string,continueGame:boolean)=>transaction(code,(r,u)=>resolveTimeoutRoomState(r,u,continueGame));
-export const requestRematch=(code:string,now=Date.now())=>transaction(code,(r,u)=>rematchRoomState(r,u,now));
-export const changeRoomSettings=(code:string,settings:GameSettings)=>transaction(code,(r,u)=>changeRoomSettingsState(r,u,settings));
+export const submitMove=(code:string,revision:number,index:number,now=Date.now())=>transaction("submit move",code,(r,u)=>moveRoomState(r,u,revision,index,now));
+export const submitUndo=(code:string,revision:number,now=Date.now())=>transaction("submit undo",code,(r,u)=>undoRoomState(r,u,revision,now));
+export const submitTimeout=(code:string,now=Date.now())=>transaction("submit timeout",code,(r,u)=>timeoutRoomState(r,u,now));
+export const submitTimeoutDecision=(code:string,continueGame:boolean)=>transaction("submit timeout decision",code,(r,u)=>resolveTimeoutRoomState(r,u,continueGame));
+export const requestRematch=(code:string,now=Date.now())=>transaction("request rematch",code,(r,u)=>rematchRoomState(r,u,now));
+export const changeRoomSettings=(code:string,settings:GameSettings)=>transaction("change room settings",code,(r,u)=>changeRoomSettingsState(r,u,settings));

@@ -6,7 +6,7 @@ import {
   remove,
   set,
 } from "firebase/database";
-import { connection } from "./firebase";
+import { connection, onlineError, onlineOperation } from "./firebase";
 import { normalizeRoom, type Room } from "./rooms";
 export async function watchRoom(
   code: string,
@@ -14,7 +14,7 @@ export async function watchRoom(
   onPresence: (ids: string[], connected: boolean) => void,
   onError: (error: Error) => void,
 ) {
-  const { db, uid } = await connection();
+  const { db, uid } = await onlineOperation("watch room", connection);
   let active = true,
     connected = false,
     ids: string[] = [];
@@ -22,7 +22,7 @@ export async function watchRoom(
   const roomOff = onValue(
     ref(db, `rooms/${code}`),
     (snap) => onRoom(snap.exists() ? normalizeRoom(snap.val()) : null, uid),
-    onError,
+    error => onError(onlineError("watch room", error)),
   );
   const presenceOff = onValue(
     ref(db, `presence/${code}`),
@@ -30,7 +30,7 @@ export async function watchRoom(
       ids = Object.keys(snap.val() ?? {});
       onPresence(ids, connected);
     },
-    onError,
+    error => onError(onlineError("watch presence", error)),
   );
   const connectedOff = onValue(
     ref(db, ".info/connected"),
@@ -46,9 +46,9 @@ export async function watchRoom(
             await set(entry, true);
             if (!active) await remove(entry);
           }
-        })().catch(onError);
+        })().catch(error => onError(onlineError("presence registration", error)));
     },
-    onError,
+    error => onError(onlineError("database connection", error)),
   );
   return () => {
     active = false;
@@ -59,9 +59,10 @@ export async function watchRoom(
   };
 }
 
-export async function watchServerOffset(onOffset: (offset: number) => void) {
-  const { db } = await connection();
+export async function watchServerOffset(onOffset: (offset: number) => void, onError?: (error: Error) => void) {
+  const { db } = await onlineOperation("watch server time offset", connection);
   return onValue(ref(db, ".info/serverTimeOffset"), snap =>
     onOffset(typeof snap.val() === "number" ? snap.val() : 0),
+    error => onError?.(onlineError("watch server time offset", error)),
   );
 }

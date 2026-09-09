@@ -48,4 +48,20 @@ export function t(key: string, vars: Record<string,string|number> = {}) { const 
 const events: Record<string, [string,string]> = {"PLAYER JOINED":["PLAYER JOINED","상대방이 들어왔습니다!"],"CHECK!":["CHECK!","체크!"],"COUNTER CHECK!":["COUNTER CHECK!","카운터 체크!"],"CHECK DEFENDED":["CHECK DEFENDED","체크 해제!"],"OPPONENT DISCONNECTED":["OPPONENT DISCONNECTED","상대방의 연결이 끊어졌습니다"],"OPPONENT RECONNECTED":["OPPONENT RECONNECTED","상대방의 연결이 돌아왔습니다."],"BLACK PASS":["BLACK PASS","흑돌을 더 이상 둘 곳이 없습니다."],"WHITE PASS":["WHITE PASS","백돌을 더 이상 둘 곳이 없습니다."],"BLACK SECOND MOVE SKIPPED":["BLACK SECOND MOVE SKIPPED","흑돌을 더 이상 둘 곳이 없습니다."],"WHITE SECOND MOVE SKIPPED":["WHITE SECOND MOVE SKIPPED","백돌을 더 이상 둘 곳이 없습니다."]};
 export function localizeEvent(event:string) { return events[event]?.[locale === "ko" ? 1 : 0] ?? event; }
 const errors: Record<string,string> = {"ROOM NOT FOUND":"방을 찾을 수 없습니다. 다시 한번 확인해 주세요.","ILLEGAL MOVE":"둘 수 없는 곳입니다.","FORBIDDEN MOVE":"턴 종료 시 상대에게 새 SIX를 남기는 금수입니다.","UNDO IS NOT AVAILABLE":"되돌리기를 할 수 없어요.","ROOM FULL":"누가 이 방에 이미 있어요..!","NOT YOUR TURN":"아직 당신의 차례가 아니에요!","STATE CHANGED — TRY AGAIN":"서버 게임 revision이 바뀌었습니다. 다시 시도해 주세요.","ENTER A VALID 6-CHARACTER CODE":"6자리 코드를 입력해 주세요!!","INVALID GAME SETTINGS":"게임 설정을 확인해 주세요."};
-export function localizeError(error:string) { if (locale === "en") return errors[error] ? error : "A NETWORK ERROR OCCURRED. PLEASE TRY AGAIN LATER."; return errors[error] ?? "네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."; }
+const onlineErrors: Record<string,[string,string]> = {
+  "ONLINE PLAY IS NOT CONFIGURED":["ONLINE PLAY IS NOT CONFIGURED.","온라인 기능이 설정되어 있지 않습니다."],
+  "DATABASE PERMISSION DENIED":["DATABASE ACCESS WAS DENIED. PLEASE CONTACT THE HOST.","데이터베이스 접근이 거부되었습니다. 관리자에게 문의해 주세요."],
+  "ONLINE AUTHENTICATION FAILED":["ONLINE AUTHENTICATION FAILED. PLEASE CONTACT THE HOST.","온라인 인증에 실패했습니다. 관리자에게 문의해 주세요."],
+  "ONLINE NETWORK UNAVAILABLE":["A NETWORK CONNECTION IS UNAVAILABLE. PLEASE TRY AGAIN.","네트워크에 연결할 수 없습니다. 다시 시도해 주세요."],
+  "ONLINE UNEXPECTED ERROR":["AN UNEXPECTED ERROR OCCURRED. PLEASE TRY AGAIN.","예기치 않은 오류가 발생했습니다. 다시 시도해 주세요."],
+};
+export function localizeError(error: unknown) {
+  let code = typeof error === "string" ? error : typeof error === "object" && error && "code" in error ? String((error as {code:unknown}).code) : error instanceof Error ? error.message : String(error);
+  const normalized=code.toLowerCase();
+  if(normalized.includes("permission-denied")||normalized==="permission_denied")code="DATABASE PERMISSION DENIED";
+  else if(normalized.includes("network")||normalized.includes("unavailable")||normalized.includes("disconnected"))code="ONLINE NETWORK UNAVAILABLE";
+  else if(normalized.startsWith("auth/")||normalized.includes("invalid-api-key"))code="ONLINE AUTHENTICATION FAILED";
+  if (onlineErrors[code]) return onlineErrors[code][locale === "ko" ? 1 : 0];
+  if (locale === "en") return errors[code] ? code : "AN UNEXPECTED ERROR OCCURRED. PLEASE TRY AGAIN.";
+  return errors[code] ?? "예기치 않은 오류가 발생했습니다. 다시 시도해 주세요.";
+}

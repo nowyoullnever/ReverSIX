@@ -27,7 +27,7 @@
         "settings": {
           ".validate": "newData.hasChildren(['initialTimeMs','clockEnabled','undoMode','checkRingEnabled'])",
           "initialTimeMs": {
-            ".validate": "newData.isNumber() && newData.val() >= 60000 && newData.val() <= 3600000"
+            ".validate": "newData.isNumber() && newData.val() >= 6000 && newData.val() <= 3600000 && newData.val() % 6000 === 0"
           },
           "clockEnabled": {
             ".validate": "newData.isBoolean()"
@@ -147,7 +147,7 @@
         "nextSettings": {
           ".validate": "newData.hasChildren(['initialTimeMs','clockEnabled','undoMode','checkRingEnabled'])",
           "initialTimeMs": {
-            ".validate": "newData.isNumber() && newData.val() >= 60000 && newData.val() <= 3600000"
+            ".validate": "newData.isNumber() && newData.val() >= 6000 && newData.val() <= 3600000 && newData.val() % 6000 === 0"
           },
           "clockEnabled": {
             ".validate": "newData.isBoolean()"

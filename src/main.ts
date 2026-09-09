@@ -391,7 +391,7 @@ async function enter(value: string) {
   stopOffset?.();
   code = value;
   sessionStorage.setItem("reversix-room", code);
-  stopOffset=await watchServerOffset(offset=>{serverOffset=offset});
+  stopOffset=await watchServerOffset(offset=>{serverOffset=offset},e=>{if(generation===subscriptionGeneration){error=e.message;render()}});
   const unsubscribe = await watchRoom(
     code,
     (next, id) => {
