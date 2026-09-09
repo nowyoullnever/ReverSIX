@@ -39,9 +39,9 @@ html[data-theme="dark"] {
   color: var(--text);
   background: var(--page-bg);
   font-synthesis: none;
-  font-size: 16px;
+  font-size: 20px;
 }
-html[lang="ko"] { font-size: 12px; }
+html[lang="ko"] { font-size: 17px; }
 html[lang="ko"] h1 { font-size: clamp(2rem, 7vw, 3.2rem); }
 html[lang="ko"] p { line-height:1.52; }
 * {

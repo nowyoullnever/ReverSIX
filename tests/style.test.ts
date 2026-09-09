@@ -19,6 +19,8 @@ it("uses Dongle Regular as the application font",()=>{
   expect(css).toContain('url("/fonts/Dongle-Regular.ttf") format("truetype")');
   expect(css).toContain('font-family: Dongle, sans-serif;');
   expect(css).not.toContain('font-family: MaruBuri');
+  expect(css).toContain('font-size: 20px;');
+  expect(css).toContain('html[lang="ko"] { font-size: 17px; }');
 });
 
 it("uses uninterrupted solid result lines",()=>{
