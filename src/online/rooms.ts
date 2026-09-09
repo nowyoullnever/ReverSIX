@@ -35,7 +35,8 @@ export function normalizeRoom(value: Room): NormalizedRoom {
   const fallbackTurnStart=value.game.moveNumberInTurn===2&&moveLog.length
     ? replayMoves(settings,moveLog.slice(0,-1),value.game.revision).game.board
     : value.game.board;
-  const nextSettings=rawNextSettings&&validSettings(rawNextSettings)?{...rawNextSettings}:undefined;
+  const nextCandidate=rawNextSettings?{...DEFAULT_SETTINGS,...rawNextSettings}:undefined;
+  const nextSettings=nextCandidate&&validSettings(nextCandidate)?nextCandidate:undefined;
   return { ...base, ...(nextSettings?{nextSettings}:{}), settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??fallbackTurnStart)], events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {

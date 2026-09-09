@@ -6,6 +6,7 @@ export interface GameSettings {
   initialTimeMs: number;
   clockEnabled: boolean;
   undoMode: UndoMode;
+  checkRingEnabled: boolean;
 }
 export interface ClockState {
   blackRemainingMs: number;
@@ -32,12 +33,14 @@ export const DEFAULT_SETTINGS: GameSettings = {
   initialTimeMs: 420_000,
   clockEnabled: true,
   undoMode: "all",
+  checkRingEnabled: true,
 };
 export function validSettings(settings: GameSettings) {
   return Number.isInteger(settings.initialTimeMs) &&
     settings.initialTimeMs >= 60_000 && settings.initialTimeMs <= 3_600_000 &&
     typeof settings.clockEnabled === "boolean" &&
-    (settings.undoMode === "all" || settings.undoMode === "turn");
+    (settings.undoMode === "all" || settings.undoMode === "turn") &&
+    typeof settings.checkRingEnabled === "boolean";
 }
 export function initialClock(settings: GameSettings, activeSince = 0, running = false): ClockState {
   return {

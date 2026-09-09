@@ -154,11 +154,14 @@ function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings:
   const legend=document.createElement("p"); legend.className="settings-legend"; legend.textContent=t("gameSettings.undo");
   const choices=radioOptions("undoMode",[["all","gameSettings.all"],["turn","gameSettings.turn"]],defaults.undoMode);
   const undoSection=document.createElement("section"); undoSection.className="game-settings-section"; undoSection.append(legend,choices);
+  const ringLegend=document.createElement("p"); ringLegend.className="settings-legend"; ringLegend.textContent=t("gameSettings.checkRing");
+  const ringChoices=radioOptions("checkRingEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],defaults.checkRingEnabled?"on":"off");
+  const ringSection=document.createElement("section"); ringSection.className="game-settings-section"; ringSection.append(ringLegend,ringChoices);
   const actions=document.createElement("div"); actions.className="settings-actions";
   const back=document.createElement("button"); back.type="button"; back.textContent=t("newGame.back"); back.onclick=backAction;
   const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(submitKey??(mode==="room"?"roomSettings.create":"gameSettings.start")); actions.append(back,submit);
-  if(mode==="computer")form.append(sideSection);form.append(timeSection,undoSection,actions); syncTimeInput();
-  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode},(data.get("humanSide")??"black") as Player)};
+  if(mode==="computer")form.append(sideSection);form.append(timeSection,undoSection,ringSection,actions); syncTimeInput();
+  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode,checkRingEnabled:data.get("checkRingEnabled")==="on"},(data.get("humanSide")??"black") as Player)};
   return form;
 }
 

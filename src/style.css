@@ -392,7 +392,7 @@ input {
 .six-highlight .stone::before { content:""; position:absolute; inset:-6px; border-radius:50%; pointer-events:none; transform-origin:center; z-index:3; animation:check-six-pulse 1000ms ease-in-out infinite; }
 .black.six-highlight .stone::before { border:3px solid #fff; box-shadow:0 0 0 1px rgb(0 0 0 / .2); }
 .white.six-highlight .stone::before { border:3px solid #000; }
-html[data-check-ring="off"] .six-highlight .stone::before { display:none; }
+main[data-check-ring="off"] .six-highlight .stone::before { display:none; }
 @keyframes check-six-pulse {
   0%,100% { opacity:.35; transform:scale(.94); }
   50% { opacity:1; transform:scale(1.06); }

@@ -17,6 +17,7 @@ const copyTimers=new WeakMap<HTMLButtonElement,ReturnType<typeof setTimeout>>();
 
 export function gameView(root:HTMLElement,rawRoom:Room,code:string,player:Player,connected:boolean,opponentOnline:boolean,busy:boolean,move:(i:number)=>void,leave:()=>void,presentation:GamePresentation={}){
   const room=normalizeRoom(rawRoom),timeout=room.timeout!,countdownEndsAt=room.countdownEndsAt!;
+  root.dataset.checkRing=room.settings!.checkRingEnabled?"on":"off";
   const s=room.game,sessionGame=presentation.finishedGame??s,finished=Boolean(sessionGame.winner);
   const winningPlayer=sessionGame.winner==="black"||sessionGame.winner==="white"?sessionGame.winner:undefined;
   const defenseFailed=Boolean(winningPlayer)&&sessionGame.events.includes("CHECK DEFENSE FAILED");

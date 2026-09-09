@@ -17,6 +17,7 @@ export interface LocalGamePresentation extends BoardPresentation {
 }
 
 export function localGameView(root:HTMLElement,game:GameState,busy:boolean,move:(index:number)=>void,leave:()=>void,presentation:LocalGamePresentation){
+  root.dataset.checkRing=presentation.settings?.checkRingEnabled===false?"off":"on";
   const sessionGame=presentation.finishedGame??game;
   const finished=Boolean(sessionGame.winner);
   const winningPlayer=sessionGame.winner==="black"||sessionGame.winner==="white"?sessionGame.winner:undefined;

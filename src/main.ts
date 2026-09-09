@@ -38,7 +38,6 @@ import { ComputerController } from "./ai/computerController";
 import { watchSystemTheme } from "./ui/theme";
 import { openGameSettingsDialog } from "./ui/newGameDialog";
 import { canReviewBack, replayForReview } from "./ui/review";
-import { applyCheckRingSetting } from "./ui/checkRing";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -76,7 +75,6 @@ function showResultOverlay(revision:number){
 }
 watchSystemTheme();
 setLocale(getLocale());
-applyCheckRingSetting();
 const unlockAudio=()=>{void audio.unlock();void bgm.unlock()};
 document.addEventListener("pointerdown", unlockAudio, { once: true });
 document.addEventListener("click", unlockAudio, { once: true });
