@@ -8,6 +8,7 @@ it("anchors CHECK rings to stones with fixed contrasting colors",()=>{
   expect(css).toContain(".six-highlight .stone::before");
   expect(css).toMatch(/\.black\.six-highlight \.stone::before\s*\{[^}]*#fff/s);
   expect(css).toMatch(/\.white\.six-highlight \.stone::before\s*\{[^}]*#000/s);
+  expect(css).toContain('html[data-check-ring="off"] .six-highlight .stone::before { display:none; }');
   expect(css).not.toContain(".six-highlight::after");
 });
 

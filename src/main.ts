@@ -37,6 +37,7 @@ import { ComputerController } from "./ai/computerController";
 import { watchSystemTheme } from "./ui/theme";
 import { openGameSettingsDialog } from "./ui/newGameDialog";
 import { canReviewBack, replayForReview } from "./ui/review";
+import { applyCheckRingSetting } from "./ui/checkRing";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -73,6 +74,7 @@ function showResultOverlay(revision:number){
 }
 watchSystemTheme();
 setLocale(getLocale());
+applyCheckRingSetting();
 document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
@@ -127,7 +129,7 @@ const presenter = new RoomPresenter(
 function render(change?: BoardChange) {
   if(computerMode&&!localGame){
     root.dataset.mode="computer-loading";delete root.dataset.room;
-    root.innerHTML=`<h1>REVERSIX!</h1><p class="local-title">${t("computer.title")}</p><p class="computer-loading" role="status">${t(computerMode.loadFailed?"computer.loadFailed":"computer.loading")}</p><button class="back">${t("game.back")}</button>`;
+    root.innerHTML=`<h1>ReverSix!</h1><p class="local-title">${t("computer.title")}</p><p class="computer-loading" role="status">${t(computerMode.loadFailed?"computer.loadFailed":"computer.loading")}</p><button class="back">${t("game.back")}</button>`;
     root.querySelector<HTMLButtonElement>(".back")!.onclick=leaveLocal;
   } else if (localGame) {
     const reviewed=localReviewCursor===null?null:replayForReview(localGame.settings,localGame.moveLog,localReviewCursor,localGame.game.revision);

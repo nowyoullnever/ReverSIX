@@ -63,6 +63,14 @@ main[data-room] {
 }
 main[data-mode="local"],
 main[data-mode="computer"] { width:min(calc(100% - 24px),1080px); }
+main[data-mode="lobby"] {
+  width:min(calc(100% - 24px),680px);
+  min-height:100dvh;
+  margin:0 auto;
+  display:grid;
+  place-items:center;
+  text-align:center;
+}
 h1 {
   font-size: clamp(2rem, 7vw, 3.2rem);
   font-weight: 400;
@@ -101,7 +109,7 @@ button:not(.cell):not(:disabled):hover {
 }
 .home-shell {
   width:min(100%,420px);
-  margin: 65px auto;
+  margin:0 auto;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -385,6 +393,7 @@ input {
 .six-highlight .stone::before { content:""; position:absolute; inset:-6px; border-radius:50%; pointer-events:none; transform-origin:center; z-index:3; animation:check-six-pulse 1000ms ease-in-out infinite; }
 .black.six-highlight .stone::before { border:3px solid #fff; box-shadow:0 0 0 1px rgb(0 0 0 / .2); }
 .white.six-highlight .stone::before { border:3px solid #000; }
+html[data-check-ring="off"] .six-highlight .stone::before { display:none; }
 @keyframes check-six-pulse {
   0%,100% { opacity:.35; transform:scale(.94); }
   50% { opacity:1; transform:scale(1.06); }
@@ -513,13 +522,13 @@ input {
 }
 .lobby-secondary-actions { display:grid; gap:14px; margin-top:32px; justify-items:center; }
 .lobby-secondary-actions .how-to-play, .settings-launch { margin:0; min-width:132px; padding:10px 14px; }
-.settings { width:min(calc(100vw - 32px),420px); min-height:300px; padding:30px 32px; position:relative; }
-.settings h2 { margin:0 44px 30px; }
-.settings-content { display:grid; gap:32px; }
+.settings { width:min(calc(100vw - 32px),340px); min-height:0; padding:22px 24px; position:relative; font-size:calc(1rem + 1px); }
+.settings h2 { margin:0 36px 20px; font-size:1.15em; }
+.settings-content { display:grid; gap:18px; }
 .settings-group { text-align:left; }
-.settings-label { margin:0 0 14px; font-size:.875rem; }
-.settings-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.settings-options button { min-height:44px; padding:10px; }
+.settings-label { margin:0 0 8px; font-size:.875rem; }
+.settings-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.settings-options button { min-height:40px; padding:8px; }
 .settings-options button[aria-pressed="true"] { background:var(--selected-bg); color:var(--selected-text); }
 .settings-close { position:absolute; top:12px; right:12px; width:44px; min-width:44px; min-height:44px; padding:0; border:0; font-size:1.5rem; }
 .lobby-status {

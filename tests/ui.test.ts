@@ -286,6 +286,7 @@ it("without Firebase, lobby keeps NEW GAME available", () => {
   expect(root.querySelector("input, form")).toBeNull();
   expect(root.textContent).not.toContain("COMPUTER");
   expect(root.textContent).not.toContain("REVERSI × SIX");
-  expect(root.querySelector(".home-shell > h1")?.textContent).toBe("REVERSIX!");
+  expect(root.querySelector(".home-shell > h1")?.textContent).toBe("ReverSix!");
+  expect(root.dataset.mode).toBe("lobby");
   expect(root.querySelector(".home-shell > .lobby #new-game")).not.toBeNull();
 });
