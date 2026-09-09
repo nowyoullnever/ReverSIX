@@ -1,6 +1,6 @@
 @font-face {
-  font-family: Dongle;
-  src: url("/fonts/Dongle-Regular.ttf") format("truetype");
+  font-family: MaruBuri;
+  src: url("/fonts/MaruBuri-Regular.otf") format("opentype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -35,13 +35,13 @@ html[data-theme="dark"] {
   color-scheme:dark;
 }
 :root {
-  font-family: Dongle, sans-serif;
+  font-family: MaruBuri, Georgia, serif;
   color: var(--text);
   background: var(--page-bg);
   font-synthesis: none;
-  font-size: 20px;
+  font-size: 16px;
 }
-html[lang="ko"] { font-size: 22px; }
+html[lang="ko"] { font-size: 12px; }
 html[lang="ko"] h1 { font-size: clamp(2rem, 7vw, 3.2rem); }
 html[lang="ko"] p { line-height:1.52; }
 * {

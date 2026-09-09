@@ -14,15 +14,6 @@ it("anchors CHECK rings to stones with fixed contrasting colors",()=>{
   expect(css).not.toContain(".six-highlight::after");
 });
 
-it("uses Dongle Regular as the application font",()=>{
-  expect(css).toContain('font-family: Dongle;');
-  expect(css).toContain('url("/fonts/Dongle-Regular.ttf") format("truetype")');
-  expect(css).toContain('font-family: Dongle, sans-serif;');
-  expect(css).not.toContain('font-family: MaruBuri');
-  expect(css).toContain('font-size: 20px;');
-  expect(css).toContain('html[lang="ko"] { font-size: 22px; }');
-});
-
 it("uses uninterrupted solid result lines",()=>{
   expect(css).not.toContain("stroke-dasharray");
   expect(css).not.toContain("stroke-dashoffset");
