@@ -34,7 +34,7 @@ it("keeps one looping BGM element at a low volume and resumes its position", asy
   }
   vi.stubGlobal("Audio",FakeAudio);
   const bgm=new BgmManager();
-  expect(bgm.isEnabled()).toBe(true);
+  expect(bgm.isEnabled()).toBe(false);
   bgm.setEnabled(false);expect(pause).toHaveBeenCalledOnce();expect(localStorage.getItem(BGM_KEY)).toBe("false");
   bgm.setEnabled(true);await Promise.resolve();expect(play).toHaveBeenCalledOnce();expect(localStorage.getItem(BGM_KEY)).toBe("true");
 });

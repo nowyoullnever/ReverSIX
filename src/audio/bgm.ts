@@ -26,6 +26,6 @@ export class BgmManager {
   }
 
   private readSetting() {
-    try { return localStorage.getItem(BGM_KEY) !== "false"; } catch { return true; }
+    try { return localStorage.getItem(BGM_KEY) === "true"; } catch { return false; }
   }
 }
