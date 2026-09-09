@@ -31,7 +31,7 @@ export function gameView(root:HTMLElement,rawRoom:Room,code:string,player:Player
   const opponent:Player=player==="black"?"white":"black",now=presentation.now??Date.now();
   const countingDown=!finished&&room.status==="playing"&&updateCountdown(root,countdownEndsAt,now);
   if(finished)root.querySelector<HTMLElement>(".countdown-overlay")!.hidden=true;
-  updateTimeoutDialog(root,timeout,timeout.pendingFor===player,presentation.timeoutDecision);
+  updateTimeoutDialog(root,timeout,timeout.pendingFor===player,presentation.timeoutDecision,busy);
   updateClocks(root,room.clock!,s.currentPlayer,now,player,opponent,room.settings!.clockEnabled&&!timeout.continueWithoutClock,!finished&&!presentation.reviewing&&!countingDown&&!timeout.pendingFor);
   const copy=root.querySelector<HTMLButtonElement>(".copy")!;if(!copyTimers.has(copy))copy.textContent=t("game.copy");
   copy.onclick=()=>void navigator.clipboard.writeText(code).then(()=>showCopyFeedback(copy,t("game.copied"))).catch(()=>showCopyFeedback(copy,t("game.select")));

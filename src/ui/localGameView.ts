@@ -33,7 +33,7 @@ export function localGameView(root:HTMLElement,game:GameState,busy:boolean,move:
   const now=presentation.now??Date.now(),timeout=presentation.timeout??{pendingFor:"",continueWithoutClock:false};
   const countingDown=!finished&&updateCountdown(root,presentation.countdownEndsAt??0,now);
   if(finished)root.querySelector<HTMLElement>(".countdown-overlay")!.hidden=true;
-  updateTimeoutDialog(root,timeout,Boolean(timeout.pendingFor),presentation.timeoutDecision);
+  updateTimeoutDialog(root,timeout,Boolean(timeout.pendingFor),presentation.timeoutDecision,busy);
   if(timeout.pendingFor&&timeout.pendingFor===presentation.computerSide)root.querySelector<HTMLElement>(".timeout-dialog h2")!.textContent=t("computer.timeout");
   if(presentation.clock&&presentation.settings)updateClocks(root,presentation.clock,game.currentPlayer,now,"black","white",presentation.settings.clockEnabled&&!timeout.continueWithoutClock,!finished&&!presentation.reviewing&&!countingDown&&!timeout.pendingFor);
   if(mode==="computer"&&presentation.humanSide)for(const [side,player] of [["left","black"],["right","white"]] as const)root.querySelector<HTMLElement>(`.clock-${side} .clock-color`)!.textContent=`${t(player===presentation.humanSide?"computer.you":"computer.name")} · ${t(`game.${player}`)}`;
