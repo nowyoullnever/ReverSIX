@@ -207,8 +207,7 @@ input {
 .board {
   --board-color-a: #d3687f;
   --board-color-b: #cbce91;
-  width: min(100%, calc(100dvh - 290px));
-  min-width: min(100%, 280px);
+  width: 100%;
   aspect-ratio: 1;
   display: grid;
   grid-template-columns: repeat(10, 1fr);
@@ -231,7 +230,7 @@ input {
 .clock-board-layout.no-clock .board-wrap { grid-column:1; grid-row:1; }
 .board-wrap {
   position: relative;
-  width: min(100%, 680px, calc(100dvh - 290px));
+  width: min(100%, 680px);
   margin: auto;
 }
 .board-slot { min-width: 0; }

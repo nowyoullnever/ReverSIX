@@ -22,3 +22,9 @@ it("uses only the required forbidden board marker",()=>{
   expect(board).toContain('mark.textContent="🚫"');
   expect(board).not.toContain('cell.textContent = "×"');
 });
+
+it("sizes the board from available width without a viewport-height cap",()=>{
+  expect(css).toMatch(/\.board\s*\{[^}]*width:\s*100%;[^}]*aspect-ratio:\s*1/s);
+  expect(css).toMatch(/\.board-wrap\s*\{[^}]*width:\s*min\(100%,\s*680px\);/s);
+  expect(css).not.toContain("calc(100dvh - 290px)");
+});
