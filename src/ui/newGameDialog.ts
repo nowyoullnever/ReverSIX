@@ -1,5 +1,5 @@
 import { t } from "../i18n/i18n";
-import { DEFAULT_SETTINGS, type GameSettings, type UndoMode } from "../game/session";
+import { COMPUTER_DEFAULT_SETTINGS, DEFAULT_SETTINGS, LOCAL_DEFAULT_SETTINGS, ROOM_DEFAULT_SETTINGS, type GameSettings, type UndoMode } from "../game/session";
 import type { Player } from "../game/types";
 import type { ComputerDifficulty } from "../ai/difficulty";
 
@@ -115,7 +115,7 @@ export function openNewGameDialog(
       dialog.append(settingsForm(mode, (settings,humanSide,difficulty) =>
         run(() => mode === "local" ? actions.local(settings) : mode === "computer" ? actions.computer(settings,humanSide,difficulty??computerDifficulty) : actions.create(settings)),
         () => { step=mode==="computer"?"computerDifficulty":"options"; render(); },
-        DEFAULT_SETTINGS,
+        mode==="computer"?COMPUTER_DEFAULT_SETTINGS:mode==="room"?ROOM_DEFAULT_SETTINGS:LOCAL_DEFAULT_SETTINGS,
       ));
     }
   };
@@ -162,9 +162,13 @@ function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings:
   const timeLegend=document.createElement("p"); timeLegend.className="settings-legend"; timeLegend.textContent=t("gameSettings.time");
   const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],defaults.clockEnabled?"on":"off");
   const timeLabel=document.createElement("label"); timeLabel.className="time-input-shell";
-  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="1"; input.max="60"; input.step="1"; input.value=String(defaults.initialTimeMs/60000); input.required=true;
+  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="0.1"; input.max="60"; input.step="0.1"; input.value=(defaults.initialTimeMs/60000).toFixed(1); input.required=true;
   const unit=document.createElement("span"); unit.textContent=t("gameSettings.minutes"); timeLabel.append(input,unit);
   const syncTimeInput=()=>{const enabled=(form.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value??"on")==="on";input.disabled=!enabled;timeLabel.classList.toggle("disabled",!enabled)};
+  let scrubStartX=0,scrubStartTenths=0,scrubbing=false;
+  input.addEventListener("pointerdown",event=>{if(event.pointerType==="touch"||input.disabled)return;scrubStartX=event.clientX;scrubStartTenths=Math.round(Number(input.value)*10);scrubbing=false;input.setPointerCapture(event.pointerId)});
+  input.addEventListener("pointermove",event=>{if(!input.hasPointerCapture(event.pointerId))return;const distance=event.clientX-scrubStartX;if(Math.abs(distance)<4)return;scrubbing=true;const tenths=Math.min(600,Math.max(1,scrubStartTenths+Math.trunc(distance/12)));input.value=(tenths/10).toFixed(1)});
+  input.addEventListener("pointerup",event=>{if(input.hasPointerCapture(event.pointerId))input.releasePointerCapture(event.pointerId);if(scrubbing)event.preventDefault()});
   timeChoices.addEventListener("change",syncTimeInput); timeSection.append(timeLegend,timeChoices,timeLabel);
   const legend=document.createElement("p"); legend.className="settings-legend"; legend.textContent=t("gameSettings.undo");
   const choices=radioOptions("undoMode",[["all","gameSettings.all"],["turn","gameSettings.turn"]],defaults.undoMode);
@@ -176,7 +180,7 @@ function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings:
   const back=document.createElement("button"); back.type="button"; back.textContent=t("newGame.back"); back.onclick=backAction;
   const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(submitKey??(mode==="room"?"roomSettings.create":"gameSettings.start")); actions.append(back,submit);
   if(mode==="computer") {if(showDifficulty)form.append(difficultySection);form.append(sideSection)}form.append(timeSection,undoSection,ringSection,actions); syncTimeInput();
-  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode,checkRingEnabled:data.get("checkRingEnabled")==="on"},(data.get("humanSide")??"black") as Player,data.get("computerDifficulty") as ComputerDifficulty|undefined)};
+  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),tenths=Math.round(minutes*10),clockEnabled=data.get("clockEnabled")==="on";if(!Number.isFinite(minutes)||tenths<1||tenths>600||Math.abs(minutes*10-tenths)>1e-8)return;submitSettings({initialTimeMs:tenths*6000,clockEnabled,undoMode:data.get("undoMode") as UndoMode,checkRingEnabled:data.get("checkRingEnabled")==="on"},(data.get("humanSide")??"black") as Player,data.get("computerDifficulty") as ComputerDifficulty|undefined)};
   return form;
 }
 

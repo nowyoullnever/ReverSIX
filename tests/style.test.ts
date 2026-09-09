@@ -14,10 +14,12 @@ it("anchors CHECK rings to stones with fixed contrasting colors",()=>{
   expect(css).not.toContain(".six-highlight::after");
 });
 
-it("uses uninterrupted solid result lines",()=>{
-  expect(css).not.toContain("stroke-dasharray");
-  expect(css).not.toContain("stroke-dashoffset");
-  expect(board).not.toContain("pathLength");
+it("draws each result line once before retaining a solid line",()=>{
+  expect(css).toContain("stroke-dasharray: 1");
+  expect(css).toContain("defeat-line-draw 650ms");
+  expect(css).toContain(".winner-black { stroke:#fff; }");
+  expect(css).toContain(".winner-white { stroke:#000; }");
+  expect(board).toContain('path.setAttribute("pathLength","1")');
 });
 
 it("uses only the required forbidden board marker",()=>{
@@ -32,5 +34,5 @@ it("sizes the board from available width without a viewport-height cap",()=>{
 });
 
 it("places UNDO before BACK TO LOBBY in every game control DOM",()=>{
-  for(const view of [onlineView,localView]) expect(view.indexOf('class="text-button undo"')).toBeLessThan(view.indexOf('class="back"'));
+  for(const view of [onlineView,localView]) expect(view.indexOf('class="undo"')).toBeLessThan(view.indexOf('class="back"'));
 });

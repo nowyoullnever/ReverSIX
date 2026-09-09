@@ -67,13 +67,14 @@ let defeatSequenceRevision = -1;
 let localReviewCursor:number|null=null,onlineReviewCursor:number|null=null;
 let resultOverlayRevision=-1;
 let resultOverlayTimer:ReturnType<typeof setTimeout>|undefined;
+const RESULT_OVERLAY_MS=2400;
 const toast = new Toast();
 const audio = new AudioManager();
 const bgm = new BgmManager();
 function clearResultOverlay(){clearTimeout(resultOverlayTimer);resultOverlayTimer=undefined;resultOverlayRevision=-1}
 function showResultOverlay(revision:number){
   clearResultOverlay();resultOverlayRevision=revision;
-  resultOverlayTimer=setTimeout(()=>{resultOverlayTimer=undefined;resultOverlayRevision=-1;render()},1100);
+  resultOverlayTimer=setTimeout(()=>{resultOverlayTimer=undefined;resultOverlayRevision=-1;render()},RESULT_OVERLAY_MS);
 }
 watchSystemTheme();
 setLocale(getLocale());

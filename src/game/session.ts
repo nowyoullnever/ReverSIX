@@ -29,15 +29,23 @@ export function countdownValue(endsAt: number, now: number) {
   const remaining=endsAt-now;
   return remaining>0?Math.min(3,Math.ceil(remaining/1_000)):0;
 }
-export const DEFAULT_SETTINGS: GameSettings = {
-  initialTimeMs: 420_000,
-  clockEnabled: true,
+export const BASE_DEFAULT_SETTINGS: Omit<GameSettings,"clockEnabled"> = {
+  initialTimeMs: 300_000,
   undoMode: "all",
   checkRingEnabled: true,
 };
+export const LOCAL_DEFAULT_SETTINGS: GameSettings = {
+  ...BASE_DEFAULT_SETTINGS,
+  clockEnabled: true,
+};
+export const ROOM_DEFAULT_SETTINGS: GameSettings = { ...LOCAL_DEFAULT_SETTINGS };
+export const COMPUTER_DEFAULT_SETTINGS: GameSettings = { ...BASE_DEFAULT_SETTINGS, clockEnabled: false };
+/** Compatibility alias for local and online defaults. */
+export const DEFAULT_SETTINGS = ROOM_DEFAULT_SETTINGS;
 export function validSettings(settings: GameSettings) {
   return Number.isInteger(settings.initialTimeMs) &&
-    settings.initialTimeMs >= 60_000 && settings.initialTimeMs <= 3_600_000 &&
+    settings.initialTimeMs >= 6_000 && settings.initialTimeMs <= 3_600_000 &&
+    settings.initialTimeMs % 6_000 === 0 &&
     typeof settings.clockEnabled === "boolean" &&
     (settings.undoMode === "all" || settings.undoMode === "turn") &&
     typeof settings.checkRingEnabled === "boolean";

@@ -10,7 +10,7 @@ import { formatClock } from "../src/ui/clockView";
 import { DEFAULT_SETTINGS } from "../src/game/session";
 const cells = (board: HTMLElement) =>
   board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
-it.each([[420000,"07:00:000"],[372481,"06:12:481"],[5027,"00:05:027"],[1,"00:00:001"],[0,"00:00:000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>{const value=formatClock(ms);expect(value).toBe(formatted);expect(value).not.toContain(".")});
+it.each([[300000,"05:00:000"],[372481,"06:12:481"],[5027,"00:05:027"],[1,"00:00:001"],[0,"00:00:000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>{const value=formatClock(ms);expect(value).toBe(formatted);expect(value).not.toContain(".")});
 it("renders A-J and 1-10 coordinates around the board",()=>{const frame=boardWithCoordinates(createGame(),true,vi.fn());expect([...frame.querySelectorAll(".board-column-coordinates span")].map(el=>el.textContent).join("")).toBe("ABCDEFGHIJ");expect([...frame.querySelectorAll(".board-row-coordinates span")].map(el=>el.textContent).join(",")).toBe("1,2,3,4,5,6,7,8,9,10");expect(frame.querySelectorAll(".board > .cell")[0].getAttribute("aria-label")).toContain("column A")});
 it("renders 100 cells and only legal moves can be clicked", () => {
   const move = vi.fn(),
@@ -129,7 +129,7 @@ it("keeps sound controls out of the active game screen", () => {
   }, "ABC234", "black", true, true, false, vi.fn(), vi.fn());
   expect(root.querySelector(".sound")).toBeNull();
 });
-it("renders chess clocks and no quick chat controls",()=>{const root=document.createElement("main");gameView(root,{status:"playing",createdAt:1,players:{black:"a",white:"b"},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:0});expect(root.querySelectorAll(".player-clock")).toHaveLength(2);expect(root.textContent).toContain("07:00");expect(root.textContent).not.toContain("CHAT")});
+it("renders chess clocks and no quick chat controls",()=>{const root=document.createElement("main");gameView(root,{status:"playing",createdAt:1,players:{black:"a",white:"b"},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:0});expect(root.querySelectorAll(".player-clock")).toHaveLength(2);expect(root.textContent).toContain("05:00");expect(root.textContent).not.toContain("CHAT")});
 it("hides online clocks without leaving infinity or a settings summary",()=>{const root=document.createElement("main");gameView(root,{status:"playing",createdAt:1,players:{black:"a",white:"b"},settings:{...DEFAULT_SETTINGS,clockEnabled:false},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:0});expect(root.querySelector(".clock-board-layout")?.classList.contains("no-clock")).toBe(true);expect(root.textContent).not.toContain("∞");expect(root.querySelector(".game-settings-summary")).toBeNull()});
 it("uses accessible fixed-width animated dots for waiting and reconnecting states", () => {
   const root = document.createElement("main");
@@ -277,7 +277,7 @@ it("marks a live defense-failure presentation for one-time SIX sequencing", () =
   gameView(root, failedRoom([40, 41, 42, 43, 44, 45]), "ABC234", "white", true, true, false, vi.fn(), vi.fn(), { defeatSequence: true });
   expect(root.querySelector(".board")?.classList.contains("defeat-sequence")).toBe(true);
   expect(root.querySelector(".result-detail")?.classList.contains("result-enter")).toBe(true);
-  expect(root.querySelector(".defeat-six-line")?.hasAttribute("pathLength")).toBe(false);
+  expect(root.querySelector(".defeat-six-line")?.getAttribute("pathLength")).toBe("1");
 });
 it("without Firebase, lobby keeps NEW GAME available", () => {
   const root = document.createElement("main");

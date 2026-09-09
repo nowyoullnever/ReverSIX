@@ -112,6 +112,18 @@ it("same-revision UI updates preserve animated DOM and input remains locked", ()
   expect(board.querySelectorAll(".cell")[44].firstChild).toBe(stone);
   expect(board.querySelectorAll("button:not(:disabled)")).toHaveLength(0);
 });
+it("keeps unchanged defeat-SIX SVG lines across repeated board updates", () => {
+  const game = createGame();
+  game.board.fill("");
+  for (let i = 40; i <= 45; i++) game.board[i] = "black";
+  game.revision = 8;
+  const presentation = { defeatLines: [[40, 41, 42, 43, 44, 45]], defeatPlayer: "black" as const };
+  const board = boardView(game, false, vi.fn(), presentation);
+  const line = board.querySelector(".defeat-six-line");
+  updateBoard(board, game, false, vi.fn(), presentation);
+  expect(board.querySelector(".defeat-six-line")).toBe(line);
+  expect(line?.classList.contains("winner-black")).toBe(true);
+});
 it("emits join once, CHECK, defense, counter-check and PASS transitions", () => {
   const a = initial(),
     b = { ...a, game: { ...a.game, revision: 1, checkBy: "black" as const } };
