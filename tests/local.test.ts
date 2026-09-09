@@ -247,7 +247,8 @@ it("collects the human side and shared settings for VS. COMPUTER",()=>{
   const dialog=openNewGameDialog(true,false,{local:vi.fn(),computer,create:vi.fn(),join:vi.fn()});
   dialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
   expect(dialog.textContent).toContain("DIFFICULTY");
-  expect([...dialog.querySelectorAll<HTMLButtonElement>("[data-difficulty]")].map(button=>button.textContent)).toEqual(["EASY","NORMAL","HARD"]);
+  expect([...dialog.querySelectorAll<HTMLButtonElement>("[data-difficulty]")].map(button=>button.textContent)).toEqual(["NORMAL","HARD"]);
+  expect(dialog.textContent).not.toContain("EASY");
   dialog.querySelector<HTMLButtonElement>('[data-difficulty="hard"]')!.click();
   expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')!.value).toBe("black");
   const white=dialog.querySelector<HTMLInputElement>('input[name="humanSide"][value="white"]')!;
@@ -256,6 +257,12 @@ it("collects the human side and shared settings for VS. COMPUTER",()=>{
   white.checked=true;turn.checked=true;minutes.value="9";
   dialog.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
   expect(computer).toHaveBeenCalledWith({initialTimeMs:540000,clockEnabled:false,undoMode:"turn",checkRingEnabled:true},"white","hard");
+  setLocale("ko");
+  const koreanDialog=openNewGameDialog(true,false,{local:vi.fn(),computer:vi.fn(),create:vi.fn(),join:vi.fn()});
+  koreanDialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
+  expect(koreanDialog.textContent).toContain("보통");
+  expect(koreanDialog.textContent).toContain("어려움");
+  expect(koreanDialog.textContent).not.toContain("쉬움");
 });
 
 it("closes the NEW GAME menu with both × and Escape", () => {

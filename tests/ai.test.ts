@@ -6,7 +6,6 @@ import { getMoveOptions } from "../src/game/rules";
 import { encode,safePlacements } from "../src/ai/encoder";
 import { ReversixNet,type ModelMeta } from "../src/ai/reversixNet";
 import { halvingSchedule,searchPlacement,type Network } from "../src/ai/search";
-import { chooseEasyMove } from "../src/ai/easyOthello";
 
 function loadModel(){const meta=JSON.parse(readFileSync("public/model/normal/model.json","utf8")) as ModelMeta,buffer=readFileSync("public/model/normal/model.bin"),flat=new Float32Array(buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength));return new ReversixNet(meta,flat)}
 function loadHardModel(){const meta=JSON.parse(readFileSync("public/model/hard/model.json","utf8")) as ModelMeta,buffer=readFileSync("public/model/hard/model.bin"),flat=new Float32Array(buffer.buffer.slice(buffer.byteOffset,buffer.byteOffset+buffer.byteLength));return new ReversixNet(meta,flat)}
@@ -27,7 +26,3 @@ it("keeps a CHECK defense first move when its second move can finish the defense
 });
 
 it("uses the current engine legal set throughout Gumbel sequential halving",async()=>{const net:Network={forward:()=>({policy:Float32Array.from({length:100},(_,index)=>index/100),value:0})};let state=createGame(),checked=0;for(let game=0;game<12&&checked<100;game++){state=createGame();while(!state.winner&&checked<100){const legal=getMoveOptions(state).legal,index=await searchPlacement(net,state,{sims:4,candidates:4,random:()=>0.5});expect(legal).toContain(index);expect(safePlacements(state)).toContain(index);state=playMove(state,state.currentPlayer,index);checked++}}expect(checked).toBeGreaterThanOrEqual(100);expect(halvingSchedule(32,16)).toEqual([[16,1],[8,1],[4,2],[2,4]])});
-
-it("keeps Easy choices inside the authoritative legal set",()=>{let state=createGame(),checked=0;while(!state.winner&&checked<100){const legal=getMoveOptions(state).legal;if(!legal.length)break;const index=chooseEasyMove(state,()=>0.5);expect(legal).toContain(index);state=playMove(state,state.currentPlayer,index);checked++}expect(checked).toBeGreaterThan(30)});
-
-it("makes Easy prefer an available corner using only Othello scoring",()=>{const board=emptyBoard();board[1]="white";board[2]="black";board[12]="white";board[13]="black";const state={...createGame(),board,turnStartBoard:[...board],currentPlayer:"black" as const};expect(getMoveOptions(state).legal).toContain(0);expect(chooseEasyMove(state)).toBe(0)});

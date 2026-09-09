@@ -1,27 +1,27 @@
 import type { GameState } from "../game/types";
 import type { ModelMeta } from "./reversixNet";
-import { MODEL_BASES, type NeuralDifficulty } from "./difficulty";
+import { MODEL_BASES, type ComputerDifficulty } from "./difficulty";
 
 interface WorkerLike { postMessage(message:unknown):void; terminate():void; onmessage:((event:MessageEvent)=>void)|null; onerror:((event:ErrorEvent)=>void)|null }
 interface Pending { resolve:(value:unknown)=>void; reject:(error:Error)=>void; progress?:(done:number,total:number)=>void; kind:"load"|"search" }
 export class ComputerController {
-  private channels=new Map<NeuralDifficulty,NeuralChannel>();
+  private channels=new Map<ComputerDifficulty,NeuralChannel>();
   constructor(private factory:()=>WorkerLike=()=>new Worker(new URL("./aiWorker.ts",import.meta.url),{type:"module"})){}
-  load(difficulty:NeuralDifficulty="normal"){return this.channel(difficulty).load(difficulty)}
-  choose(state:GameState,difficulty:NeuralDifficulty="normal",progress?:(done:number,total:number)=>void){return this.channel(difficulty).choose(state,difficulty,progress)}
+  load(difficulty:ComputerDifficulty="normal"){return this.channel(difficulty).load(difficulty)}
+  choose(state:GameState,difficulty:ComputerDifficulty="normal",progress?:(done:number,total:number)=>void){return this.channel(difficulty).choose(state,difficulty,progress)}
   cancel(){for(const channel of this.channels.values())channel.cancel()}
   dispose(){for(const channel of this.channels.values())channel.dispose()}
-  private channel(difficulty:NeuralDifficulty){let channel=this.channels.get(difficulty);if(!channel){channel=new NeuralChannel(this.factory());this.channels.set(difficulty,channel)}return channel}
+  private channel(difficulty:ComputerDifficulty){let channel=this.channels.get(difficulty);if(!channel){channel=new NeuralChannel(this.factory());this.channels.set(difficulty,channel)}return channel}
 }
 class NeuralChannel {
   private nextId=1;private pending=new Map<number,Pending>();private loadPromise?:Promise<ModelMeta>;private activeSearch=0;
   constructor(private worker:WorkerLike){this.worker.onmessage=event=>this.receive(event.data);this.worker.onerror=event=>this.failAll(new Error(event.message||"AI WORKER FAILED"))}
-  load(difficulty:NeuralDifficulty){
+  load(difficulty:ComputerDifficulty){
     if(this.loadPromise)return this.loadPromise;
     const id=this.nextId++;this.loadPromise=new Promise<ModelMeta>((resolve,reject)=>{this.pending.set(id,{resolve:value=>resolve(value as ModelMeta),reject,kind:"load"});this.worker.postMessage({type:"load",id,base:MODEL_BASES[difficulty]})});
     this.loadPromise.catch(()=>{this.loadPromise=undefined});return this.loadPromise;
   }
-  async choose(state:GameState,difficulty:NeuralDifficulty,progress?:(done:number,total:number)=>void){
+  async choose(state:GameState,difficulty:ComputerDifficulty,progress?:(done:number,total:number)=>void){
     await this.load(difficulty);this.cancel();const id=this.nextId++;this.activeSearch=id;
     return new Promise<{index:number;revision:number}>((resolve,reject)=>{this.pending.set(id,{resolve:value=>resolve(value as {index:number;revision:number}),reject,progress,kind:"search"});this.worker.postMessage({type:"search",id,state:structuredClone(state)})});
   }

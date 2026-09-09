@@ -66,7 +66,7 @@ export function openNewGameDialog(
       }
     } else if(step === "computerDifficulty") {
       const options=document.createElement("div");options.className="new-game-options difficulty-options";
-      for(const difficulty of ["easy","normal","hard"] as const){
+      for(const difficulty of ["normal","hard"] as const){
         const button=option(t(`computer.${difficulty}`),false,()=>{computerDifficulty=difficulty;step="computerSettings";render()});
         button.dataset.difficulty=difficulty;options.append(button);
       }
@@ -157,7 +157,7 @@ function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings:
   sideSection.append(sideLegend,radioOptions("humanSide",[["black","computer.black"],["white","computer.white"]],selectedSide));
   const difficultySection=document.createElement("section");difficultySection.className="game-settings-section computer-difficulty-section";
   const difficultyLegend=document.createElement("p");difficultyLegend.className="settings-legend";difficultyLegend.textContent=t("computer.difficulty");
-  difficultySection.append(difficultyLegend,radioOptions("computerDifficulty",[["easy","computer.easy"],["normal","computer.normal"],["hard","computer.hard"]],difficulty??"normal"));
+  difficultySection.append(difficultyLegend,radioOptions("computerDifficulty",[["normal","computer.normal"],["hard","computer.hard"]],difficulty??"normal"));
   const timeSection=document.createElement("section"); timeSection.className="game-settings-section";
   const timeLegend=document.createElement("p"); timeLegend.className="settings-legend"; timeLegend.textContent=t("gameSettings.time");
   const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],defaults.clockEnabled?"on":"off");

@@ -35,8 +35,7 @@ import { LocalGameSession } from "./local/localGame";
 import { mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
-import { chooseEasyMove } from "./ai/easyOthello";
-import type { ComputerDifficulty, NeuralDifficulty } from "./ai/difficulty";
+import type { ComputerDifficulty } from "./ai/difficulty";
 import { watchSystemTheme } from "./ui/theme";
 import { openGameSettingsDialog } from "./ui/newGameDialog";
 import { canReviewBack, replayForReview } from "./ui/review";
@@ -256,8 +255,7 @@ function startLocalGame(settings: GameSettings) {
 async function startComputerGame(settings:GameSettings,humanSide:Player,difficulty:ComputerDifficulty="normal"){
   cancelComputerWork();localGame=null;const generation=(computerMode?.generation??0)+1;
   localReviewCursor=null;clearResultOverlay();
-  computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",difficulty,loading:difficulty!=="easy",loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
-  if(difficulty==="easy"){localGame=new LocalGameSession(settings);render();return}
+  computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",difficulty,loading:true,loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
   computerController??=new ComputerController();
   try{await computerController.load(difficulty);if(!computerMode||computerMode.generation!==generation)return;localGame=new LocalGameSession(settings);computerMode.loading=false;render()}
   catch{if(!computerMode||computerMode.generation!==generation)return;computerMode.loading=false;computerMode.loadFailed=true;render()}
@@ -345,9 +343,7 @@ async function runComputerMove(){
   const generation=computerMode.generation,revision=localGame.game.revision;computerMode.thinking=true;computerMode.progress=undefined;render();
   try{
     const difficulty=computerMode.difficulty;
-    const result=difficulty==="easy"
-      ? {index:chooseEasyMove(localGame.game),revision}
-      : await computerController!.choose(localGame.game,difficulty as NeuralDifficulty,(done,total)=>{if(computerMode&&computerMode.generation===generation&&computerMode.difficulty===difficulty){computerMode.progress={done,total};render()}});
+    const result=await computerController!.choose(localGame.game,difficulty,(done,total)=>{if(computerMode&&computerMode.generation===generation&&computerMode.difficulty===difficulty){computerMode.progress={done,total};render()}});
     if(!computerMode||!localGame||computerMode.generation!==generation||computerMode.difficulty!==difficulty||localGame.game.revision!==revision||result.revision!==revision||localGame.game.currentPlayer!==computerMode.computerSide||localGame.timeout.pendingFor||localGame.game.winner)return;
     computerMode.thinking=false;computerMode.progress=undefined;performLocalMove(result.index);
   }catch(e){if((e as Error).name!=="AbortError"&&computerMode&&computerMode.generation===generation){computerMode.thinking=false;computerMode.progress=undefined;error="COMPUTER SEARCH FAILED";render()}}
