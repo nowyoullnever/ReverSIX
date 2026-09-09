@@ -29,6 +29,7 @@ import {
   type BoardChange,
 } from "./ui/transitions";
 import { AudioManager } from "./audio/audio";
+import { BgmManager } from "./audio/bgm";
 import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
 import { mayUndo, remainingAt, type GameSettings } from "./game/session";
@@ -67,6 +68,7 @@ let resultOverlayRevision=-1;
 let resultOverlayTimer:ReturnType<typeof setTimeout>|undefined;
 const toast = new Toast();
 const audio = new AudioManager();
+const bgm = new BgmManager();
 function clearResultOverlay(){clearTimeout(resultOverlayTimer);resultOverlayTimer=undefined;resultOverlayRevision=-1}
 function showResultOverlay(revision:number){
   clearResultOverlay();resultOverlayRevision=revision;
@@ -75,7 +77,10 @@ function showResultOverlay(revision:number){
 watchSystemTheme();
 setLocale(getLocale());
 applyCheckRingSetting();
-document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
+const unlockAudio=()=>{void audio.unlock();void bgm.unlock()};
+document.addEventListener("pointerdown", unlockAudio, { once: true });
+document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("keydown", unlockAudio, { once: true });
 const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
   (previous, next, change) => {
@@ -218,6 +223,8 @@ function render(change?: BoardChange) {
       () => audio.isEnabled(),
       (enabled) => { audio.setEnabled(enabled); render(); },
       render,
+      () => bgm.isEnabled(),
+      (enabled) => { bgm.setEnabled(enabled); render(); },
     );
   const existing = root.querySelector<HTMLElement>(".game-error");
   if (existing) {

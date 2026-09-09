@@ -8,6 +8,8 @@ export interface SettingsControls {
   setTheme:(value:Theme)=>void;
   getCheckRing:()=>boolean;
   setCheckRing:(value:boolean)=>void;
+  getBgm:()=>boolean;
+  setBgm:(value:boolean)=>void;
   changed:()=>void;
 }
 
@@ -30,6 +32,7 @@ export function openSettings(controls:SettingsControls) {
     group(t("settings.appearance"),[["light",t("settings.light")],["dark",t("settings.dark")]],value=>controls.setTheme(value as Theme),controls.getTheme());
     group(t("settings.sound"),[["on",t("settings.on")],["off",t("settings.off")]],value=>controls.setSound(value==="on"),controls.getSound()?"on":"off");
     group(t("settings.checkRing"),[["on",t("settings.on")],["off",t("settings.off")]],value=>controls.setCheckRing(value==="on"),controls.getCheckRing()?"on":"off");
+    group(t("settings.bgm"),[["on",t("settings.on")],["off",t("settings.off")]],value=>controls.setBgm(value==="on"),controls.getBgm()?"on":"off");
     dialog.append(content);
   };
   dialog.addEventListener("cancel",event=>{event.preventDefault();close()});document.body.append(dialog);render();dialog.showModal();return dialog;

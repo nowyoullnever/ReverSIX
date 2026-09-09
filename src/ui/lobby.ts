@@ -20,6 +20,8 @@ export function lobby(
   getSound: () => boolean = () => true,
   setSound: (value:boolean) => void = () => {},
   changed: () => void = () => {},
+  getBgm: () => boolean = () => true,
+  setBgm: (value:boolean) => void = () => {},
 ) {
   root.dataset.mode = "lobby";
   delete root.dataset.room;
@@ -33,7 +35,7 @@ export function lobby(
   help.textContent = t("lobby.how");
   help.onclick = () => openTutorial();
   const secondary=document.createElement("div");secondary.className="lobby-secondary-actions";secondary.append(help);
-  const settings=document.createElement("button");settings.className="settings-launch";settings.textContent=t("lobby.settings");settings.onclick=()=>openSettings({getSound,setSound,getTheme,setTheme,getCheckRing:getCheckRingEnabled,setCheckRing:setCheckRingEnabled,changed});secondary.append(settings);root.querySelector(".lobby")!.append(secondary);
+  const settings=document.createElement("button");settings.className="settings-launch";settings.textContent=t("lobby.settings");settings.onclick=()=>openSettings({getSound,setSound,getTheme,setTheme,getCheckRing:getCheckRingEnabled,setCheckRing:setCheckRingEnabled,getBgm,setBgm,changed});secondary.append(settings);root.querySelector(".lobby")!.append(secondary);
   if (activity) {
     const status = document.createElement("p");
     status.className = "lobby-status";
