@@ -3,6 +3,8 @@ import { expect, it } from "vitest";
 
 const css=readFileSync(new URL("../src/style.css",import.meta.url),"utf8");
 const board=readFileSync(new URL("../src/ui/boardView.ts",import.meta.url),"utf8");
+const onlineView=readFileSync(new URL("../src/ui/gameView.ts",import.meta.url),"utf8");
+const localView=readFileSync(new URL("../src/ui/localGameView.ts",import.meta.url),"utf8");
 
 it("anchors CHECK rings to stones with fixed contrasting colors",()=>{
   expect(css).toContain(".six-highlight .stone::before");
@@ -27,4 +29,8 @@ it("sizes the board from available width without a viewport-height cap",()=>{
   expect(css).toMatch(/\.board\s*\{[^}]*width:\s*100%;[^}]*aspect-ratio:\s*1/s);
   expect(css).toMatch(/\.board-wrap\s*\{[^}]*width:\s*min\(100%,\s*680px\);/s);
   expect(css).not.toContain("calc(100dvh - 290px)");
+});
+
+it("places UNDO before BACK TO LOBBY in every game control DOM",()=>{
+  for(const view of [onlineView,localView]) expect(view.indexOf('class="text-button undo"')).toBeLessThan(view.indexOf('class="back"'));
 });
