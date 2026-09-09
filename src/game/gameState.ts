@@ -1,5 +1,5 @@
 import { initialBoard } from "./board";
-import { applyMove } from "./reversi";
+import { applyMove, getLegalMoves } from "./reversi";
 import { getMoveOptions } from "./rules";
 import { getSixLines } from "./six";
 import { other, type GameState, type Player } from "./types";
@@ -71,7 +71,7 @@ export function playMove(
   else {
     s.firstPlacedStone = index;
     s.moveNumberInTurn = 2;
-    if (!getMoveOptions(s).legal.length) {
+    if (!getLegalMoves(s.board, player).length) {
       s.events.push(`${player.toUpperCase()} SECOND MOVE SKIPPED`);
       finishTurn(s);
     }
