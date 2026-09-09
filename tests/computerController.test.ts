@@ -14,12 +14,12 @@ class FakeWorker {
 it("loads the Pages-relative model once and reports search progress",async()=>{
   const worker=new FakeWorker(),controller=new ComputerController(()=>worker);
   const load=controller.load(),loadMessage=worker.messages[0] as {type:string;id:number;base:string};
-  expect(loadMessage).toMatchObject({type:"load",base:"/model/latest"});
+  expect(loadMessage).toMatchObject({type:"load",base:"/model/normal/model"});
   worker.emit({type:"loaded",id:loadMessage.id,meta:{iter:20}});
   await expect(load).resolves.toMatchObject({iter:20});
   await controller.load();
   expect(worker.messages.filter((message:any)=>message.type==="load")).toHaveLength(1);
-  const progress=vi.fn(),choice=controller.choose(createGame(),progress);
+  const progress=vi.fn(),choice=controller.choose(createGame(),"normal",progress);
   await Promise.resolve();
   const search=worker.messages.at(-1) as {type:string;id:number;state:{revision:number}};
   expect(search).toMatchObject({type:"search",state:{revision:0}});

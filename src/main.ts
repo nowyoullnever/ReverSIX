@@ -35,6 +35,8 @@ import { LocalGameSession } from "./local/localGame";
 import { mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
+import { chooseEasyMove } from "./ai/easyOthello";
+import type { ComputerDifficulty, NeuralDifficulty } from "./ai/difficulty";
 import { watchSystemTheme } from "./ui/theme";
 import { openGameSettingsDialog } from "./ui/newGameDialog";
 import { canReviewBack, replayForReview } from "./ui/review";
@@ -54,7 +56,7 @@ let localLocked = false;
 let localTimer: ReturnType<typeof setTimeout> | undefined;
 let computerTimer:ReturnType<typeof setTimeout>|undefined;
 let computerController:ComputerController|undefined;
-let computerMode:{humanSide:Player;computerSide:Player;loading:boolean;loadFailed:boolean;thinking:boolean;progress?:{done:number;total:number};generation:number}|null=null;
+let computerMode:{humanSide:Player;computerSide:Player;difficulty:ComputerDifficulty;loading:boolean;loadFailed:boolean;thinking:boolean;progress?:{done:number;total:number};generation:number}|null=null;
 let serverOffset=0;
 let stopOffset:(()=>void)|undefined;
 let timeoutPending=false;
@@ -250,12 +252,13 @@ function startLocalGame(settings: GameSettings) {
   sessionStorage.removeItem("reversix-room");
   render();
 }
-async function startComputerGame(settings:GameSettings,humanSide:Player){
+async function startComputerGame(settings:GameSettings,humanSide:Player,difficulty:ComputerDifficulty="normal"){
   cancelComputerWork();localGame=null;const generation=(computerMode?.generation??0)+1;
   localReviewCursor=null;clearResultOverlay();
-  computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",loading:true,loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
+  computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",difficulty,loading:difficulty!=="easy",loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
+  if(difficulty==="easy"){localGame=new LocalGameSession(settings);render();return}
   computerController??=new ComputerController();
-  try{await computerController.load();if(!computerMode||computerMode.generation!==generation)return;localGame=new LocalGameSession(settings);computerMode.loading=false;render()}
+  try{await computerController.load(difficulty);if(!computerMode||computerMode.generation!==generation)return;localGame=new LocalGameSession(settings);computerMode.loading=false;render()}
   catch{if(!computerMode||computerMode.generation!==generation)return;computerMode.loading=false;computerMode.loadFailed=true;render()}
 }
 function rematchLocal(){if(!localGame?.game.winner)return;cancelComputerWork(false);localReviewCursor=null;clearResultOverlay();localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render();queueComputerMove()}
@@ -304,11 +307,11 @@ function undoLocal() {
 }
 function changeLocalOptions(){
   if(!localGame?.game.winner)return;
-  openGameSettingsDialog(computerMode?"computer":"local",localGame.settings,computerMode?.humanSide??"black",(settings,humanSide)=>{
+  openGameSettingsDialog(computerMode?"computer":"local",localGame.settings,computerMode?.humanSide??"black",(settings,humanSide,difficulty)=>{
+    if(computerMode){void startComputerGame(settings,humanSide,difficulty??computerMode.difficulty);return}
     cancelComputerWork(false);localReviewCursor=null;clearResultOverlay();six=[];defeatSequenceRevision=-1;toast.clear();localGame=new LocalGameSession(settings);
-    if(computerMode){computerMode={...computerMode,humanSide,computerSide:humanSide==="black"?"white":"black",loading:false,loadFailed:false,thinking:false,progress:undefined,generation:computerMode.generation+1}}
     render();queueComputerMove();
-  });
+  },undefined,computerMode?.difficulty);
 }
 function undoOnline(){
   if(!room)return;
@@ -340,8 +343,11 @@ async function runComputerMove(){
   if(!computerMode||!localGame||computerMode.loading||computerMode.loadFailed||computerMode.thinking||localLocked||localGame.game.winner||localGame.timeout.pendingFor||Date.now()<localGame.countdownEndsAt||localGame.game.currentPlayer!==computerMode.computerSide)return;
   const generation=computerMode.generation,revision=localGame.game.revision;computerMode.thinking=true;computerMode.progress=undefined;render();
   try{
-    const result=await computerController!.choose(localGame.game,(done,total)=>{if(computerMode&&computerMode.generation===generation){computerMode.progress={done,total};render()}});
-    if(!computerMode||!localGame||computerMode.generation!==generation||localGame.game.revision!==revision||result.revision!==revision||localGame.game.currentPlayer!==computerMode.computerSide||localGame.timeout.pendingFor||localGame.game.winner)return;
+    const difficulty=computerMode.difficulty;
+    const result=difficulty==="easy"
+      ? {index:chooseEasyMove(localGame.game),revision}
+      : await computerController!.choose(localGame.game,difficulty as NeuralDifficulty,(done,total)=>{if(computerMode&&computerMode.generation===generation&&computerMode.difficulty===difficulty){computerMode.progress={done,total};render()}});
+    if(!computerMode||!localGame||computerMode.generation!==generation||computerMode.difficulty!==difficulty||localGame.game.revision!==revision||result.revision!==revision||localGame.game.currentPlayer!==computerMode.computerSide||localGame.timeout.pendingFor||localGame.game.winner)return;
     computerMode.thinking=false;computerMode.progress=undefined;performLocalMove(result.index);
   }catch(e){if((e as Error).name!=="AbortError"&&computerMode&&computerMode.generation===generation){computerMode.thinking=false;computerMode.progress=undefined;error="COMPUTER SEARCH FAILED";render()}}
 }

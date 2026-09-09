@@ -5,6 +5,7 @@ import { openSettings } from "./settings";
 import { openNewGameDialog } from "./newGameDialog";
 import type { GameSettings } from "../game/session";
 import type { Player } from "../game/types";
+import type { ComputerDifficulty } from "../ai/difficulty";
 import { getTheme, setTheme } from "./theme";
 export type LobbyActivity = "creating" | "joining" | "reconnecting" | undefined;
 export function lobby(
@@ -12,7 +13,7 @@ export function lobby(
   configured: boolean,
   busy: boolean,
   local: (settings: GameSettings) => void,
-  computer: (settings: GameSettings,humanSide:Player) => void,
+  computer: (settings: GameSettings,humanSide:Player,difficulty:ComputerDifficulty) => void,
   create: (settings: GameSettings) => void,
   join: (code: string) => void,
   activity?: LobbyActivity,

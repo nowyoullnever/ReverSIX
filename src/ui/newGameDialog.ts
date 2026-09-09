@@ -1,10 +1,11 @@
 import { t } from "../i18n/i18n";
 import { DEFAULT_SETTINGS, type GameSettings, type UndoMode } from "../game/session";
 import type { Player } from "../game/types";
+import type { ComputerDifficulty } from "../ai/difficulty";
 
 interface NewGameActions {
   local: (settings: GameSettings) => void;
-  computer: (settings: GameSettings, humanSide: Player) => void;
+  computer: (settings: GameSettings, humanSide: Player, difficulty: ComputerDifficulty) => void;
   create: (settings: GameSettings) => void;
   join: (code: string) => void;
 }
@@ -18,7 +19,8 @@ export function openNewGameDialog(
   dialog.className = "new-game-dialog";
   dialog.setAttribute("aria-labelledby", "new-game-title");
   const previousFocus = document.activeElement as HTMLElement | null;
-  let step: "options" | "join" | "localSettings" | "computerSettings" | "roomSettings" = "options";
+  let step: "options" | "join" | "localSettings" | "computerDifficulty" | "computerSettings" | "roomSettings" = "options";
+  let computerDifficulty:ComputerDifficulty="normal";
   const close = () => {
     dialog.close();
     dialog.remove();
@@ -38,14 +40,14 @@ export function openNewGameDialog(
     closeButton.onclick = close;
     const title = document.createElement("h2");
     title.id = "new-game-title";
-    title.textContent = step === "options" ? t("newGame.title") : step === "join" ? t("newGame.join") : t(step === "computerSettings" ? "computer.title" : step === "localSettings" ? "gameSettings.title" : "roomSettings.title");
+    title.textContent = step === "options" ? t("newGame.title") : step === "join" ? t("newGame.join") : t(step === "computerDifficulty" ? "computer.difficulty" : step === "computerSettings" ? "computer.title" : step === "localSettings" ? "gameSettings.title" : "roomSettings.title");
     dialog.append(closeButton, title);
     if (step === "options") {
       const options = document.createElement("div");
       options.className = "new-game-options";
       const local = option(t("newGame.local"), false, () => { step="localSettings"; render(); });
       local.classList.add("new-game-local");
-      const computer = option(t("newGame.computer"), false, () => { step="computerSettings"; render(); });
+      const computer = option(t("newGame.computer"), false, () => { step="computerDifficulty"; render(); });
       computer.classList.add("new-game-computer");
       const create = option(t("newGame.create"), busy || !configured, () => { step="roomSettings"; render(); });
       create.classList.add("new-game-create");
@@ -62,6 +64,14 @@ export function openNewGameDialog(
         note.textContent = t("lobby.unconfigured");
         dialog.append(note);
       }
+    } else if(step === "computerDifficulty") {
+      const options=document.createElement("div");options.className="new-game-options difficulty-options";
+      for(const difficulty of ["easy","normal","hard"] as const){
+        const button=option(t(`computer.${difficulty}`),false,()=>{computerDifficulty=difficulty;step="computerSettings";render()});
+        button.dataset.difficulty=difficulty;options.append(button);
+      }
+      const back=document.createElement("button");back.type="button";back.className="new-game-back";back.textContent=t("newGame.back");back.onclick=()=>{step="options";render()};
+      dialog.append(options,back);
     } else if (step === "join") {
       const form = document.createElement("form");
       form.className = "new-game-join-form";
@@ -102,9 +112,10 @@ export function openNewGameDialog(
       queueMicrotask(() => input.focus());
     } else {
       const mode=step === "localSettings" ? "local" : step === "computerSettings" ? "computer" : "room";
-      dialog.append(settingsForm(mode, (settings,humanSide) =>
-        run(() => mode === "local" ? actions.local(settings) : mode === "computer" ? actions.computer(settings,humanSide) : actions.create(settings)),
-        () => { step="options"; render(); },
+      dialog.append(settingsForm(mode, (settings,humanSide,difficulty) =>
+        run(() => mode === "local" ? actions.local(settings) : mode === "computer" ? actions.computer(settings,humanSide,difficulty??computerDifficulty) : actions.create(settings)),
+        () => { step=mode==="computer"?"computerDifficulty":"options"; render(); },
+        DEFAULT_SETTINGS,
       ));
     }
   };
@@ -122,8 +133,9 @@ export function openGameSettingsDialog(
   mode:"local"|"computer"|"room",
   defaults:GameSettings,
   humanSide:Player,
-  submitSettings:(settings:GameSettings,humanSide:Player)=>void,
+  submitSettings:(settings:GameSettings,humanSide:Player,difficulty?:ComputerDifficulty)=>void,
   submitKey=mode==="room"?"game.changeOptions":"gameSettings.start",
+  difficulty?:ComputerDifficulty,
 ) {
   const dialog=document.createElement("dialog");
   dialog.className="new-game-dialog";
@@ -133,16 +145,19 @@ export function openGameSettingsDialog(
   const closeButton=document.createElement("button");
   closeButton.type="button";closeButton.className="new-game-close";closeButton.textContent="×";closeButton.setAttribute("aria-label",t("newGame.closeAria"));closeButton.onclick=close;
   const title=document.createElement("h2");title.id="game-options-title";title.textContent=t(mode==="computer"?"computer.title":mode==="room"?"roomSettings.title":"gameSettings.title");
-  dialog.append(closeButton,title,settingsForm(mode,(settings,side)=>{close();submitSettings(settings,side)},close,defaults,humanSide,submitKey));
+  dialog.append(closeButton,title,settingsForm(mode,(settings,side,difficulty)=>{close();submitSettings(settings,side,difficulty)},close,defaults,humanSide,submitKey,difficulty,true));
   dialog.addEventListener("cancel",event=>{event.preventDefault();close()});
   document.body.append(dialog);dialog.showModal();return dialog;
 }
 
-function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings: GameSettings,humanSide:Player) => void, backAction: () => void, defaults:GameSettings=DEFAULT_SETTINGS, selectedSide:Player="black", submitKey?:string) {
+function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings: GameSettings,humanSide:Player,difficulty?:ComputerDifficulty) => void, backAction: () => void, defaults:GameSettings=DEFAULT_SETTINGS, selectedSide:Player="black", submitKey?:string,difficulty?:ComputerDifficulty,showDifficulty=false) {
   const form=document.createElement("form"); form.className="game-settings-form";
   const sideSection=document.createElement("section");sideSection.className="game-settings-section computer-side-section";
   const sideLegend=document.createElement("p");sideLegend.className="settings-legend";sideLegend.textContent=t("computer.side");
   sideSection.append(sideLegend,radioOptions("humanSide",[["black","computer.black"],["white","computer.white"]],selectedSide));
+  const difficultySection=document.createElement("section");difficultySection.className="game-settings-section computer-difficulty-section";
+  const difficultyLegend=document.createElement("p");difficultyLegend.className="settings-legend";difficultyLegend.textContent=t("computer.difficulty");
+  difficultySection.append(difficultyLegend,radioOptions("computerDifficulty",[["easy","computer.easy"],["normal","computer.normal"],["hard","computer.hard"]],difficulty??"normal"));
   const timeSection=document.createElement("section"); timeSection.className="game-settings-section";
   const timeLegend=document.createElement("p"); timeLegend.className="settings-legend"; timeLegend.textContent=t("gameSettings.time");
   const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],defaults.clockEnabled?"on":"off");
@@ -160,8 +175,8 @@ function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings:
   const actions=document.createElement("div"); actions.className="settings-actions";
   const back=document.createElement("button"); back.type="button"; back.textContent=t("newGame.back"); back.onclick=backAction;
   const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(submitKey??(mode==="room"?"roomSettings.create":"gameSettings.start")); actions.append(back,submit);
-  if(mode==="computer")form.append(sideSection);form.append(timeSection,undoSection,ringSection,actions); syncTimeInput();
-  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode,checkRingEnabled:data.get("checkRingEnabled")==="on"},(data.get("humanSide")??"black") as Player)};
+  if(mode==="computer") {if(showDifficulty)form.append(difficultySection);form.append(sideSection)}form.append(timeSection,undoSection,ringSection,actions); syncTimeInput();
+  form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode,checkRingEnabled:data.get("checkRingEnabled")==="on"},(data.get("humanSide")??"black") as Player,data.get("computerDifficulty") as ComputerDifficulty|undefined)};
   return form;
 }
 

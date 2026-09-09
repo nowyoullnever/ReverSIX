@@ -246,13 +246,16 @@ it("collects the human side and shared settings for VS. COMPUTER",()=>{
   const computer=vi.fn();
   const dialog=openNewGameDialog(true,false,{local:vi.fn(),computer,create:vi.fn(),join:vi.fn()});
   dialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
+  expect(dialog.textContent).toContain("DIFFICULTY");
+  expect([...dialog.querySelectorAll<HTMLButtonElement>("[data-difficulty]")].map(button=>button.textContent)).toEqual(["EASY","NORMAL","HARD"]);
+  dialog.querySelector<HTMLButtonElement>('[data-difficulty="hard"]')!.click();
   expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')!.value).toBe("black");
   const white=dialog.querySelector<HTMLInputElement>('input[name="humanSide"][value="white"]')!;
   const turn=dialog.querySelector<HTMLInputElement>('input[name="undoMode"][value="turn"]')!;
   const minutes=dialog.querySelector<HTMLInputElement>('input[name="minutes"]')!;
   white.checked=true;turn.checked=true;minutes.value="9";
   dialog.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
-  expect(computer).toHaveBeenCalledWith({initialTimeMs:540000,clockEnabled:true,undoMode:"turn",checkRingEnabled:true},"white");
+  expect(computer).toHaveBeenCalledWith({initialTimeMs:540000,clockEnabled:true,undoMode:"turn",checkRingEnabled:true},"white","hard");
 });
 
 it("closes the NEW GAME menu with both × and Escape", () => {
