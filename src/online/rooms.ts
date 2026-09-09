@@ -10,6 +10,7 @@ export interface Room {
   createdAt: number;
   players: { black: string; white?: string };
   settings?: GameSettings;
+  nextSettings?: GameSettings;
   clock?: ClockState;
   moveLog?: MoveRecord[];
   rematch?: RematchState;
@@ -28,12 +29,14 @@ export function newRoom(uid: string, settings: GameSettings = DEFAULT_SETTINGS, 
   return { status: "waiting", createdAt: now, players: { black: uid }, settings: { ...settings }, clock: initialClock(settings), moveLog: [], rematch: { black: false, white: false, generation: 0 }, countdownEndsAt:0, timeout:{...EMPTY_TIMEOUT}, game: createGame() };
 }
 export function normalizeRoom(value: Room): NormalizedRoom {
+  const {nextSettings:rawNextSettings,...base}=value;
   const settings = { ...DEFAULT_SETTINGS, ...(value.settings ?? {}) };
   const moveLog=value.moveLog??[];
   const fallbackTurnStart=value.game.moveNumberInTurn===2&&moveLog.length
     ? replayMoves(settings,moveLog.slice(0,-1),value.game.revision).game.board
     : value.game.board;
-  return { ...value, settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??fallbackTurnStart)], events: value.game.events ?? [] } };
+  const nextSettings=rawNextSettings&&validSettings(rawNextSettings)?{...rawNextSettings}:undefined;
+  return { ...base, ...(nextSettings?{nextSettings}:{}), settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??fallbackTurnStart)], events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {
   if (!value) throw new Error("ROOM NOT FOUND");
@@ -99,9 +102,17 @@ export function rematchRoomState(value: Room, uid: string, now = Date.now()): No
   if (room.status !== "finished") throw new Error("REMATCH IS NOT AVAILABLE");
   const rematch = { ...room.rematch, [player]: true };
   if (!rematch.black || !rematch.white) return { ...room, game:{...room.game,revision:room.game.revision+1}, rematch };
+  const settings=room.nextSettings??room.settings;
   const game=createGame(); game.revision=room.game.revision+1;
   const countdownEndsAt=now+COUNTDOWN_MS;
-  return { ...room, status: "playing", game, countdownEndsAt, timeout:{...EMPTY_TIMEOUT},clock: initialClock(room.settings, countdownEndsAt, room.settings.clockEnabled), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
+  const {nextSettings:_nextSettings,...base}=room;
+  return { ...base, settings:{...settings}, status: "playing", game, countdownEndsAt, timeout:{...EMPTY_TIMEOUT},clock: initialClock(settings, countdownEndsAt, settings.clockEnabled), moveLog: [], rematch: { black:false, white:false, generation: room.rematch.generation + 1 } };
+}
+export function changeRoomSettingsState(value:Room,uid:string,settings:GameSettings):NormalizedRoom{
+  const room=normalizeRoom(value);assertMember(room,uid);
+  if(room.status!=="finished")throw new Error("GAME IS NOT FINISHED");
+  if(!validSettings(settings))throw new Error("INVALID GAME SETTINGS");
+  return {...room,nextSettings:{...settings},rematch:{...room.rematch,black:false,white:false}};
 }
 async function transaction(code: string, mutate: (room: Room, uid: string) => Room) {
   const { db, uid } = await connection(); let failure = "ROOM NOT FOUND";
@@ -126,3 +137,4 @@ export const submitUndo=(code:string,revision:number,now=Date.now())=>transactio
 export const submitTimeout=(code:string,now=Date.now())=>transaction(code,(r,u)=>timeoutRoomState(r,u,now));
 export const submitTimeoutDecision=(code:string,continueGame:boolean)=>transaction(code,(r,u)=>resolveTimeoutRoomState(r,u,continueGame));
 export const requestRematch=(code:string,now=Date.now())=>transaction(code,(r,u)=>rematchRoomState(r,u,now));
+export const changeRoomSettings=(code:string,settings:GameSettings)=>transaction(code,(r,u)=>changeRoomSettingsState(r,u,settings));

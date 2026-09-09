@@ -30,13 +30,11 @@ function drawDefeatLines(board: HTMLElement, lines: number[][] = []) {
     board.prepend(overlay);
   }
   overlay.replaceChildren(
-    ...lines.map((line, index) => {
+    ...lines.map((line) => {
       const start = line[0],
         end = line.at(-1)!;
       const path = svg("line");
       path.classList.add("defeat-six-line");
-      path.setAttribute("pathLength", "1");
-      path.style.setProperty("--defeat-delay", `${Math.min(index * 80, 160)}ms`);
       path.setAttribute("x1", `${(start % 10) * 10 + 5}`);
       path.setAttribute("y1", `${Math.floor(start / 10) * 10 + 5}`);
       path.setAttribute("x2", `${(end % 10) * 10 + 5}`);
@@ -71,7 +69,13 @@ export function updateBoard(
       const boardColor = (Math.floor(i / 10) + (i % 10)) % 2 ? "board-color-b" : "board-color-a";
       cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""} ${!color && forbidden.includes(i) ? "forbidden" : ""}`;
       cell.replaceChildren();
-      if (!color && forbidden.includes(i)) cell.textContent = "×";
+      if (!color && forbidden.includes(i)) {
+        const mark=document.createElement("span");
+        mark.className="forbidden-mark";
+        mark.textContent="🚫";
+        mark.setAttribute("aria-hidden","true");
+        cell.append(mark);
+      }
       cell.setAttribute(
         "aria-label",
         t("board.cell", { row: Math.floor(i / 10) + 1, column: String.fromCharCode(65 + i % 10), state: color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),

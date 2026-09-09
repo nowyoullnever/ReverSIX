@@ -219,6 +219,8 @@ input {
   justify-content: center;
   gap: 20px;
 }
+.clock-board-layout.no-clock { grid-template-columns:minmax(280px,680px); }
+.clock-board-layout.no-clock .board-wrap { grid-column:1; grid-row:1; }
 .board-wrap {
   position: relative;
   width: min(100%, 680px, calc(100dvh - 290px));
@@ -264,6 +266,7 @@ input {
   background: var(--surface);
   text-align: center;
 }
+.player-clock[hidden] { display:none; }
 .player-clock.active { border: 2px solid var(--border); padding: 15px 11px; }
 .clock-color {
   font-size: .875rem;
@@ -297,7 +300,6 @@ input {
 .timeout-dialog p { margin:0 0 22px; }
 .timeout-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .timeout-actions button { min-height:46px; }
-.game-settings-summary { margin: 4px auto 12px; color:var(--muted); font-size:.75rem; }
 .game-settings-form { display:grid; gap:20px; text-align:left; }
 .settings-legend { margin:0; font-size:.875rem; }
 .game-settings-section { display:grid; gap:12px; }
@@ -380,10 +382,12 @@ input {
   background: #000;
   border-color: #000;
 }
-.six-highlight::after { content:""; position:absolute; inset:7%; border:2px solid #000; border-radius:50%; pointer-events:none; z-index:3; animation:check-six-pulse 1100ms ease-in-out infinite; }
+.six-highlight .stone::before { content:""; position:absolute; inset:-6px; border-radius:50%; pointer-events:none; transform-origin:center; z-index:3; animation:check-six-pulse 1000ms ease-in-out infinite; }
+.black.six-highlight .stone::before { border:3px solid #fff; box-shadow:0 0 0 1px rgb(0 0 0 / .2); }
+.white.six-highlight .stone::before { border:3px solid #000; }
 @keyframes check-six-pulse {
-  0%,100% { opacity:.5; transform:scale(1); }
-  50% { opacity:1; transform:scale(1.04); }
+  0%,100% { opacity:.35; transform:scale(.94); }
+  50% { opacity:1; transform:scale(1.06); }
 }
 .six-lines {
   position: absolute;
@@ -401,20 +405,9 @@ input {
   opacity: 0.78;
 }
 .defeat-sequence .defeat-six-line {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  opacity: 0;
-  animation:
-    defeat-line-draw 320ms ease-out calc(540ms + var(--defeat-delay)) both,
-    defeat-line-pulse 170ms ease-out calc(870ms + var(--defeat-delay)) both;
+  animation:defeat-line-reveal 220ms ease-out both;
 }
-@keyframes defeat-line-draw {
-  to { stroke-dashoffset: 0; opacity: 0.78; }
-}
-@keyframes defeat-line-pulse {
-  0%, 100% { opacity: 0.78; stroke-width: 4; }
-  45% { opacity: 1; stroke-width: 5; }
-}
+@keyframes defeat-line-reveal { from { opacity:0; } to { opacity:.78; } }
 .defeat-six .stone {
   outline: 2px solid #000;
   outline-offset: 4px;
@@ -439,6 +432,10 @@ input {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+.result-overlay { position:fixed; inset:0; z-index:35; display:grid; place-items:center; background:var(--countdown-backdrop); pointer-events:none; animation:result-overlay-show 1100ms ease both; }
+.result-overlay[hidden] { display:none; }
+.result-overlay strong { padding:22px 30px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:clamp(2rem,8vw,4.5rem); text-align:center; }
+@keyframes result-overlay-show { 0% { opacity:0; } 14%,78% { opacity:1; } 100% { opacity:0; } }
 @keyframes six-pulse {
   50% {
     outline-color: #000;
@@ -494,7 +491,9 @@ input {
   justify-content: center;
   align-items: center;
   gap: 12px;
+  flex-wrap:wrap;
 }
+.game-controls .undo { flex-basis:100%; }
 .text-button {
   border: 0;
   background: transparent;
@@ -648,7 +647,7 @@ input {
   .six-highlight .stone-flip {
     animation: none !important;
   }
-  .six-highlight::after { animation:none; opacity:1; }
+  .six-highlight .stone::before { animation:none; opacity:1; }
   .defeat-six .stone,
   .defeat-sequence .defeat-six .stone,
   .defeat-sequence .defeat-six-line,
@@ -667,10 +666,7 @@ input {
     animation: none !important;
   }
   .countdown-overlay span { animation:none !important; }
-  .defeat-sequence .defeat-six-line {
-    stroke-dashoffset: 0;
-    opacity: .78;
-  }
+  .result-overlay { animation:none; }
   .animated-dots::after {
     content: "...";
     animation: none;
@@ -696,6 +692,7 @@ input {
 .forbidden {
   font-size: clamp(14px, 4vw, 26px);
 }
+.forbidden-mark { display:grid; place-items:center; line-height:1; font-size:clamp(14px,4vw,26px); pointer-events:none; }
 .check {
   font-size: 1rem;
   margin: 8px 0 16px;
@@ -750,6 +747,8 @@ html[lang="ko"] .game-controls button { font-size: clamp(.85rem, 3.4vw, 1rem); }
   main[data-room] { width: min(100% - 24px, 680px); }
   .clock-board-layout { grid-template-columns:1fr 1fr; gap:10px; }
   .clock-board-layout .board-wrap { grid-column:1 / -1; grid-row:2; }
+  .clock-board-layout.no-clock { grid-template-columns:minmax(0,680px); }
+  .clock-board-layout.no-clock .board-wrap { grid-column:1; grid-row:1; }
   .player-clock { padding:10px; gap:4px; }
   .player-clock.active { padding:9px; }
   .clock-time { font-size:1.3rem; }

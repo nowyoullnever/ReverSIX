@@ -7,6 +7,7 @@ import { createGame } from "../src/game/gameState";
 import { emptyBoard } from "../src/game/board";
 import type { Room } from "../src/online/rooms";
 import { formatClock } from "../src/ui/clockView";
+import { DEFAULT_SETTINGS } from "../src/game/session";
 const cells = (board: HTMLElement) =>
   board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
 it.each([[420000,"07:00:000"],[372481,"06:12:481"],[5027,"00:05:027"],[1,"00:00:001"],[0,"00:00:000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>{const value=formatClock(ms);expect(value).toBe(formatted);expect(value).not.toContain(".")});
@@ -40,7 +41,7 @@ it("does not mark Reversi-legal cells as forbidden", () => {
   cells(board)[42].click();
   expect(move).toHaveBeenCalledWith(42);
 });
-it("marks opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";s.turnStartBoard=[...s.board];const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("×");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: creates an opponent SIX");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
+it("marks opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";s.turnStartBoard=[...s.board];const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("🚫");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: creates an opponent SIX");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
 it("disables board on opponent turn, waiting, disconnect and pending writes", () => {
   const r: Room = {
     status: "playing",
@@ -97,6 +98,7 @@ it.each([
   expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);
 });
 it("shows REMATCH after a result and displays the waiting vote state",()=>{const root=document.createElement("main"),rematch=vi.fn(),game={...createGame(),winner:"black" as const};gameView(root,{status:"finished",createdAt:1,players:{black:"a",white:"b"},game},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{rematch});const button=root.querySelector<HTMLButtonElement>(".rematch")!;expect(button.hidden).toBe(false);button.click();expect(rematch).toHaveBeenCalledOnce();gameView(root,{status:"finished",createdAt:1,players:{black:"a",white:"b"},game,rematch:{black:true,white:false,generation:0}},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{rematch});expect(button.disabled).toBe(true);expect(button.textContent).toContain("WAITING FOR OPPONENT")});
+it("shows CHANGE OPTIONS only after the game finishes",()=>{const active=document.createElement("main"),change=vi.fn();gameView(active,{status:"playing",createdAt:1,players:{black:"a",white:"b"},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{changeOptions:change});expect(active.querySelector<HTMLButtonElement>(".change-options")!.hidden).toBe(true);const finished=document.createElement("main"),game={...createGame(),winner:"black" as const};gameView(finished,{status:"finished",createdAt:1,players:{black:"a",white:"b"},game},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{changeOptions:change});const button=finished.querySelector<HTMLButtonElement>(".change-options")!;expect(button.hidden).toBe(false);expect(button.textContent).toBe("CHANGE OPTIONS");button.click();expect(change).toHaveBeenCalledOnce()});
 it("shows timeout as the result cause without a defeat SIX line",()=>{const root=document.createElement("main"),game={...createGame(),winner:"white" as const,events:["BLACK TIMEOUT"]};gameView(root,{status:"finished",createdAt:1,players:{black:"a",white:"b"},game},"ABC234","black",true,true,false,vi.fn(),vi.fn());expect(root.querySelector(".turn-status")?.textContent).toContain("BLACK TIME OUT!");expect(root.querySelectorAll(".defeat-six-line")).toHaveLength(0)});
 it("locks online play during countdown and restores role-specific timeout UI",()=>{const root=document.createElement("main"),decide=vi.fn(),base={status:"playing" as const,createdAt:1,players:{black:"a",white:"b"},game:createGame(),countdownEndsAt:4000};gameView(root,base,"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:1000,timeoutDecision:decide});expect(root.querySelector(".countdown-overlay")?.textContent).toBe("3");expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);const pending={...base,countdownEndsAt:0,timeout:{pendingFor:"black" as const,continueWithoutClock:false}};gameView(root,pending,"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:5000,timeoutDecision:decide});expect(root.querySelector(".timeout-dialog")?.hasAttribute("open")).toBe(true);expect(root.querySelector(".timeout-dialog")?.textContent).toContain("CONTINUE?");root.querySelectorAll<HTMLButtonElement>(".timeout-actions button")[0].click();expect(decide).toHaveBeenCalledWith(true);const opponentRoot=document.createElement("main");gameView(opponentRoot,pending,"ABC234","white",true,true,false,vi.fn(),vi.fn(),{now:5000,timeoutDecision:decide});expect(opponentRoot.querySelector(".timeout-dialog")?.textContent).toContain("Waiting for their response");expect(opponentRoot.querySelector(".timeout-actions")).toBeNull()});
 it("shows CHECK and disconnect states", () => {
@@ -128,6 +130,7 @@ it("keeps sound controls out of the active game screen", () => {
   expect(root.querySelector(".sound")).toBeNull();
 });
 it("renders chess clocks and no quick chat controls",()=>{const root=document.createElement("main");gameView(root,{status:"playing",createdAt:1,players:{black:"a",white:"b"},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:0});expect(root.querySelectorAll(".player-clock")).toHaveLength(2);expect(root.textContent).toContain("07:00");expect(root.textContent).not.toContain("CHAT")});
+it("hides online clocks without leaving infinity or a settings summary",()=>{const root=document.createElement("main");gameView(root,{status:"playing",createdAt:1,players:{black:"a",white:"b"},settings:{...DEFAULT_SETTINGS,clockEnabled:false},game:createGame()},"ABC234","black",true,true,false,vi.fn(),vi.fn(),{now:0});expect(root.querySelector(".clock-board-layout")?.classList.contains("no-clock")).toBe(true);expect(root.textContent).not.toContain("∞");expect(root.querySelector(".game-settings-summary")).toBeNull()});
 it("uses accessible fixed-width animated dots for waiting and reconnecting states", () => {
   const root = document.createElement("main");
   const waiting = { status: "waiting" as const, createdAt: 1, players: { black: "a" }, game: createGame() };
@@ -274,7 +277,7 @@ it("marks a live defense-failure presentation for one-time SIX sequencing", () =
   gameView(root, failedRoom([40, 41, 42, 43, 44, 45]), "ABC234", "white", true, true, false, vi.fn(), vi.fn(), { defeatSequence: true });
   expect(root.querySelector(".board")?.classList.contains("defeat-sequence")).toBe(true);
   expect(root.querySelector(".result-detail")?.classList.contains("result-enter")).toBe(true);
-  expect(root.querySelector(".defeat-six-line")?.getAttribute("pathLength")).toBe("1");
+  expect(root.querySelector(".defeat-six-line")?.hasAttribute("pathLength")).toBe(false);
 });
 it("without Firebase, lobby keeps NEW GAME available", () => {
   const root = document.createElement("main");

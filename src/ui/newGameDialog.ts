@@ -118,25 +118,45 @@ export function openNewGameDialog(
   return dialog;
 }
 
-function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings: GameSettings,humanSide:Player) => void, backAction: () => void) {
+export function openGameSettingsDialog(
+  mode:"local"|"computer"|"room",
+  defaults:GameSettings,
+  humanSide:Player,
+  submitSettings:(settings:GameSettings,humanSide:Player)=>void,
+  submitKey=mode==="room"?"game.changeOptions":"gameSettings.start",
+) {
+  const dialog=document.createElement("dialog");
+  dialog.className="new-game-dialog";
+  dialog.setAttribute("aria-labelledby","game-options-title");
+  const previousFocus=document.activeElement as HTMLElement|null;
+  const close=()=>{dialog.close();dialog.remove();previousFocus?.focus()};
+  const closeButton=document.createElement("button");
+  closeButton.type="button";closeButton.className="new-game-close";closeButton.textContent="×";closeButton.setAttribute("aria-label",t("newGame.closeAria"));closeButton.onclick=close;
+  const title=document.createElement("h2");title.id="game-options-title";title.textContent=t(mode==="computer"?"computer.title":mode==="room"?"roomSettings.title":"gameSettings.title");
+  dialog.append(closeButton,title,settingsForm(mode,(settings,side)=>{close();submitSettings(settings,side)},close,defaults,humanSide,submitKey));
+  dialog.addEventListener("cancel",event=>{event.preventDefault();close()});
+  document.body.append(dialog);dialog.showModal();return dialog;
+}
+
+function settingsForm(mode:"local"|"computer"|"room", submitSettings: (settings: GameSettings,humanSide:Player) => void, backAction: () => void, defaults:GameSettings=DEFAULT_SETTINGS, selectedSide:Player="black", submitKey?:string) {
   const form=document.createElement("form"); form.className="game-settings-form";
   const sideSection=document.createElement("section");sideSection.className="game-settings-section computer-side-section";
   const sideLegend=document.createElement("p");sideLegend.className="settings-legend";sideLegend.textContent=t("computer.side");
-  sideSection.append(sideLegend,radioOptions("humanSide",[["black","computer.black"],["white","computer.white"]],"black"));
+  sideSection.append(sideLegend,radioOptions("humanSide",[["black","computer.black"],["white","computer.white"]],selectedSide));
   const timeSection=document.createElement("section"); timeSection.className="game-settings-section";
   const timeLegend=document.createElement("p"); timeLegend.className="settings-legend"; timeLegend.textContent=t("gameSettings.time");
-  const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],"on");
+  const timeChoices=radioOptions("clockEnabled",[["on","gameSettings.on"],["off","gameSettings.off"]],defaults.clockEnabled?"on":"off");
   const timeLabel=document.createElement("label"); timeLabel.className="time-input-shell";
-  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="1"; input.max="60"; input.step="1"; input.value=String(DEFAULT_SETTINGS.initialTimeMs/60000); input.required=true;
+  const input=document.createElement("input"); input.type="number"; input.name="minutes"; input.min="1"; input.max="60"; input.step="1"; input.value=String(defaults.initialTimeMs/60000); input.required=true;
   const unit=document.createElement("span"); unit.textContent=t("gameSettings.minutes"); timeLabel.append(input,unit);
   const syncTimeInput=()=>{const enabled=(form.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value??"on")==="on";input.disabled=!enabled;timeLabel.classList.toggle("disabled",!enabled)};
   timeChoices.addEventListener("change",syncTimeInput); timeSection.append(timeLegend,timeChoices,timeLabel);
   const legend=document.createElement("p"); legend.className="settings-legend"; legend.textContent=t("gameSettings.undo");
-  const choices=radioOptions("undoMode",[["all","gameSettings.all"],["turn","gameSettings.turn"]],"all");
+  const choices=radioOptions("undoMode",[["all","gameSettings.all"],["turn","gameSettings.turn"]],defaults.undoMode);
   const undoSection=document.createElement("section"); undoSection.className="game-settings-section"; undoSection.append(legend,choices);
   const actions=document.createElement("div"); actions.className="settings-actions";
   const back=document.createElement("button"); back.type="button"; back.textContent=t("newGame.back"); back.onclick=backAction;
-  const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(mode==="room"?"roomSettings.create":"gameSettings.start"); actions.append(back,submit);
+  const submit=document.createElement("button"); submit.type="submit"; submit.textContent=t(submitKey??(mode==="room"?"roomSettings.create":"gameSettings.start")); actions.append(back,submit);
   if(mode==="computer")form.append(sideSection);form.append(timeSection,undoSection,actions); syncTimeInput();
   form.onsubmit=e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),minutes=Number(input.value),clockEnabled=data.get("clockEnabled")==="on";if(clockEnabled&&(!Number.isInteger(minutes)||minutes<1||minutes>60))return;submitSettings({initialTimeMs:minutes*60000,clockEnabled,undoMode:data.get("undoMode") as UndoMode},(data.get("humanSide")??"black") as Player)};
   return form;

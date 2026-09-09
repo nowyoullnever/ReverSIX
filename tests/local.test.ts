@@ -7,7 +7,7 @@ import { LocalGameSession } from "../src/local/localGame";
 import { DEFAULT_SETTINGS } from "../src/game/session";
 import { setLocale } from "../src/i18n/i18n";
 import { localGameView } from "../src/ui/localGameView";
-import { openNewGameDialog } from "../src/ui/newGameDialog";
+import { openGameSettingsDialog, openNewGameDialog } from "../src/ui/newGameDialog";
 import { lobby } from "../src/ui/lobby";
 
 beforeEach(() => {
@@ -141,6 +141,7 @@ it("shows objective local CHECK and color-based winner text with SIX lines", () 
   expect(resultRoot.querySelectorAll(".defeat-six")).toHaveLength(6);
   expect(resultRoot.textContent).not.toContain("YOU WIN");
 });
+it("keeps result controls during review without replaying the result overlay",()=>{const finished={...createGame(),winner:"black" as const},review=createGame(),root=document.createElement("main"),change=vi.fn();localGameView(root,review,false,vi.fn(),vi.fn(),{canUndo:true,undo:vi.fn(),rematch:vi.fn(),changeOptions:change,finishedGame:finished,reviewing:true,resultOverlay:false,clock:{blackRemainingMs:1,whiteRemainingMs:1,activeSince:0,running:false},settings:DEFAULT_SETTINGS,now:0});expect(root.querySelector(".turn-status")?.textContent).toBe("BLACK WINS!");expect(root.querySelector<HTMLButtonElement>(".rematch")!.hidden).toBe(false);expect(root.querySelector<HTMLButtonElement>(".change-options")!.hidden).toBe(false);expect(root.querySelector<HTMLButtonElement>(".undo")!.disabled).toBe(false);expect(root.querySelectorAll(".cell:not(:disabled)")).toHaveLength(0);expect(root.querySelectorAll(".defeat-six-line")).toHaveLength(0);expect((root.querySelector(".result-overlay") as HTMLElement).hidden).toBe(true)});
 
 it("shows only NEW GAME on Home and opens the four-option menu", () => {
   const root = document.createElement("main");
@@ -264,3 +265,5 @@ it("closes the NEW GAME menu with both × and Escape", () => {
   escapeDialog.dispatchEvent(new Event("cancel", { cancelable: true }));
   expect(escapeDialog.isConnected).toBe(false);
 });
+it("hides both clocks and removes the settings summary when time is disabled",()=>{const root=document.createElement("main");localGameView(root,createGame(),false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),clock:{blackRemainingMs:420000,whiteRemainingMs:420000,activeSince:0,running:false},settings:{...DEFAULT_SETTINGS,clockEnabled:false},now:0,countdownEndsAt:0});expect(root.querySelector(".clock-board-layout")?.classList.contains("no-clock")).toBe(true);expect([...root.querySelectorAll<HTMLElement>(".player-clock")].every(clock=>clock.hidden)).toBe(true);expect(root.textContent).not.toContain("∞");expect(root.querySelector(".game-settings-summary")).toBeNull()});
+it("reopens game options with the current values selected",()=>{const submit=vi.fn();const settings={initialTimeMs:600000,clockEnabled:false,undoMode:"turn" as const};const dialog=openGameSettingsDialog("computer",settings,"white",submit);expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')?.value).toBe("white");expect(dialog.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="undoMode"]:checked')?.value).toBe("turn");expect(dialog.querySelector<HTMLInputElement>('input[name="minutes"]')?.value).toBe("10");expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe("START GAME")});

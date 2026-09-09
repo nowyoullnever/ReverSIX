@@ -5,62 +5,156 @@
     "rooms": {
       "$code": {
         ".read": "auth != null && $code.matches(/^[A-HJ-NP-Z2-9]{6}$/)",
-        ".write": "auth != null && $code.matches(/^[A-HJ-NP-Z2-9]{6}$/) && newData.exists() && ((!data.exists() && newData.child('players/black').val() === auth.uid && !newData.child('players/white').exists() && newData.child('status').val() === 'waiting' && newData.child('game/revision').val() === 0) || (data.child('status').val() === 'waiting' && !data.child('players/white').exists() && data.child('players/black').val() !== auth.uid && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === auth.uid && newData.child('status').val() === 'playing' && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('settings/initialTimeMs').val() === data.child('settings/initialTimeMs').val() && (newData.child('settings/clockEnabled').val() === data.child('settings/clockEnabled').val() || (!data.child('settings/clockEnabled').exists() && newData.child('settings/clockEnabled').val() === true)) && newData.child('settings/undoMode').val() === data.child('settings/undoMode').val() && newData.child('game/revision').val() === data.child('game/revision').val()) || ((data.child('players/black').val() === auth.uid || data.child('players/white').val() === auth.uid) && (!data.child('timeout/pendingFor').exists() || data.child('timeout/pendingFor').val() === '' || ((((data.child('timeout/pendingFor').val() === 'black' && data.child('players/black').val() === auth.uid) || (data.child('timeout/pendingFor').val() === 'white' && data.child('players/white').val() === auth.uid))) && newData.child('timeout/pendingFor').val() === '')) && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === data.child('players/white').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('settings/initialTimeMs').val() === data.child('settings/initialTimeMs').val() && (newData.child('settings/clockEnabled').val() === data.child('settings/clockEnabled').val() || (!data.child('settings/clockEnabled').exists() && newData.child('settings/clockEnabled').val() === true)) && newData.child('settings/undoMode').val() === data.child('settings/undoMode').val() && newData.child('game/revision').val() === data.child('game/revision').val() + 1 && ((newData.child('rematch/generation').val() === data.child('rematch/generation').val() && (data.child('players/black').val() === auth.uid || newData.child('rematch/black').val() === data.child('rematch/black').val()) && (data.child('players/white').val() === auth.uid || newData.child('rematch/white').val() === data.child('rematch/white').val())) || (newData.child('rematch/generation').val() === data.child('rematch/generation').val() + 1 && newData.child('rematch/black').val() === false && newData.child('rematch/white').val() === false))))",
+        ".write": "auth != null && $code.matches(/^[A-HJ-NP-Z2-9]{6}$/) && newData.exists() && ((!data.exists() && newData.child('players/black').val() === auth.uid && !newData.child('players/white').exists() && newData.child('status').val() === 'waiting' && newData.child('game/revision').val() === 0) || (data.child('status').val() === 'waiting' && !data.child('players/white').exists() && data.child('players/black').val() !== auth.uid && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === auth.uid && newData.child('status').val() === 'playing' && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('settings/initialTimeMs').val() === data.child('settings/initialTimeMs').val() && (newData.child('settings/clockEnabled').val() === data.child('settings/clockEnabled').val() || (!data.child('settings/clockEnabled').exists() && newData.child('settings/clockEnabled').val() === true)) && newData.child('settings/undoMode').val() === data.child('settings/undoMode').val() && newData.child('game/revision').val() === data.child('game/revision').val()) || ((data.child('players/black').val() === auth.uid || data.child('players/white').val() === auth.uid) && (!data.child('timeout/pendingFor').exists() || data.child('timeout/pendingFor').val() === '' || ((((data.child('timeout/pendingFor').val() === 'black' && data.child('players/black').val() === auth.uid) || (data.child('timeout/pendingFor').val() === 'white' && data.child('players/white').val() === auth.uid))) && newData.child('timeout/pendingFor').val() === '')) && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === data.child('players/white').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('settings/initialTimeMs').val() === data.child('settings/initialTimeMs').val() && (newData.child('settings/clockEnabled').val() === data.child('settings/clockEnabled').val() || (!data.child('settings/clockEnabled').exists() && newData.child('settings/clockEnabled').val() === true)) && newData.child('settings/undoMode').val() === data.child('settings/undoMode').val() && newData.child('game/revision').val() === data.child('game/revision').val() + 1 && ((newData.child('rematch/generation').val() === data.child('rematch/generation').val() && (data.child('players/black').val() === auth.uid || newData.child('rematch/black').val() === data.child('rematch/black').val()) && (data.child('players/white').val() === auth.uid || newData.child('rematch/white').val() === data.child('rematch/white').val())) || (newData.child('rematch/generation').val() === data.child('rematch/generation').val() + 1 && newData.child('rematch/black').val() === false && newData.child('rematch/white').val() === false))) || (data.child('status').val() === 'finished' && newData.child('status').val() === 'finished' && (data.child('players/black').val() === auth.uid || data.child('players/white').val() === auth.uid) && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === data.child('players/white').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('settings/initialTimeMs').val() === data.child('settings/initialTimeMs').val() && newData.child('settings/clockEnabled').val() === data.child('settings/clockEnabled').val() && newData.child('settings/undoMode').val() === data.child('settings/undoMode').val() && newData.child('game/revision').val() === data.child('game/revision').val() && newData.child('nextSettings').exists() && newData.child('rematch/generation').val() === data.child('rematch/generation').val() && newData.child('rematch/black').val() === false && newData.child('rematch/white').val() === false) || (data.child('status').val() === 'finished' && newData.child('status').val() === 'playing' && (data.child('players/black').val() === auth.uid || data.child('players/white').val() === auth.uid) && newData.child('players/black').val() === data.child('players/black').val() && newData.child('players/white').val() === data.child('players/white').val() && newData.child('createdAt').val() === data.child('createdAt').val() && data.child('nextSettings').exists() && newData.child('settings/initialTimeMs').val() === data.child('nextSettings/initialTimeMs').val() && newData.child('settings/clockEnabled').val() === data.child('nextSettings/clockEnabled').val() && newData.child('settings/undoMode').val() === data.child('nextSettings/undoMode').val() && !newData.child('nextSettings').exists() && newData.child('game/revision').val() === data.child('game/revision').val() + 1 && newData.child('rematch/generation').val() === data.child('rematch/generation').val() + 1 && newData.child('rematch/black').val() === false && newData.child('rematch/white').val() === false))",
         ".validate": "newData.hasChildren(['status','createdAt','players','settings','clock','rematch','countdownEndsAt','timeout','game'])",
-        "status": { ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'" },
-        "createdAt": { ".validate": "newData.isNumber()" },
+        "status": {
+          ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'finished'"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
         "players": {
-          "black": { ".validate": "newData.isString()" },
-          "white": { ".validate": "newData.isString() && newData.val() !== newData.parent().child('black').val()" },
-          "$other": { ".validate": false }
+          "black": {
+            ".validate": "newData.isString()"
+          },
+          "white": {
+            ".validate": "newData.isString() && newData.val() !== newData.parent().child('black').val()"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "settings": {
           ".validate": "newData.hasChildren(['initialTimeMs','clockEnabled','undoMode'])",
-          "initialTimeMs": { ".validate": "newData.isNumber() && newData.val() >= 60000 && newData.val() <= 3600000" },
-          "clockEnabled": { ".validate": "newData.isBoolean()" },
-          "undoMode": { ".validate": "newData.val() === 'all' || newData.val() === 'turn'" },
-          "$other": { ".validate": false }
+          "initialTimeMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 60000 && newData.val() <= 3600000"
+          },
+          "clockEnabled": {
+            ".validate": "newData.isBoolean()"
+          },
+          "undoMode": {
+            ".validate": "newData.val() === 'all' || newData.val() === 'turn'"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "clock": {
           ".validate": "newData.hasChildren(['blackRemainingMs','whiteRemainingMs','activeSince','running'])",
-          "blackRemainingMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600000" },
-          "whiteRemainingMs": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600000" },
-          "activeSince": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 10000" },
-          "running": { ".validate": "newData.isBoolean()" },
-          "$other": { ".validate": false }
+          "blackRemainingMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600000"
+          },
+          "whiteRemainingMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600000"
+          },
+          "activeSince": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 10000"
+          },
+          "running": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
-        "countdownEndsAt": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 10000" },
+        "countdownEndsAt": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 10000"
+        },
         "timeout": {
           ".validate": "newData.hasChildren(['pendingFor','continueWithoutClock'])",
-          "pendingFor": { ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white'" },
-          "continueWithoutClock": { ".validate": "newData.isBoolean()" },
-          "$other": { ".validate": false }
-        },        "moveLog": {
-          "$index": { ".validate": "$index.matches(/^(0|[1-9][0-9]*)$/) && newData.hasChildren(['index','player','elapsedMs']) && newData.child('index').isNumber() && newData.child('index').val() >= 0 && newData.child('index').val() < 100 && (newData.child('player').val() === 'black' || newData.child('player').val() === 'white') && newData.child('elapsedMs').isNumber() && newData.child('elapsedMs').val() >= 0" }
+          "pendingFor": {
+            ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white'"
+          },
+          "continueWithoutClock": {
+            ".validate": "newData.isBoolean()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "moveLog": {
+          "$index": {
+            ".validate": "$index.matches(/^(0|[1-9][0-9]*)$/) && newData.hasChildren(['index','player','elapsedMs']) && newData.child('index').isNumber() && newData.child('index').val() >= 0 && newData.child('index').val() < 100 && (newData.child('player').val() === 'black' || newData.child('player').val() === 'white') && newData.child('elapsedMs').isNumber() && newData.child('elapsedMs').val() >= 0"
+          }
         },
         "rematch": {
           ".validate": "newData.hasChildren(['black','white','generation'])",
-          "black": { ".validate": "newData.isBoolean()" },
-          "white": { ".validate": "newData.isBoolean()" },
-          "generation": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "$other": { ".validate": false }
+          "black": {
+            ".validate": "newData.isBoolean()"
+          },
+          "white": {
+            ".validate": "newData.isBoolean()"
+          },
+          "generation": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$other": {
+            ".validate": false
+          }
         },
         "game": {
           ".validate": "newData.hasChildren(['board','turnStartBoard','currentPlayer','turn','moveNumberInTurn','firstPlacedStone','checkBy','winner','consecutivePasses','revision']) && newData.child('board').hasChildren(['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','65','66','67','68','69','70','71','72','73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88','89','90','91','92','93','94','95','96','97','98','99']) && newData.child('turnStartBoard').hasChildren(['0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31','32','33','34','35','36','37','38','39','40','41','42','43','44','45','46','47','48','49','50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','65','66','67','68','69','70','71','72','73','74','75','76','77','78','79','80','81','82','83','84','85','86','87','88','89','90','91','92','93','94','95','96','97','98','99'])",
-          "board": { "$index": { ".validate": "$index.matches(/^(0|[1-9][0-9]?)$/) && (newData.val() === '' || newData.val() === 'black' || newData.val() === 'white')" } },
-          "turnStartBoard": { "$index": { ".validate": "$index.matches(/^(0|[1-9][0-9]?)$/) && (newData.val() === '' || newData.val() === 'black' || newData.val() === 'white')" } },
-          "currentPlayer": { ".validate": "newData.val() === 'black' || newData.val() === 'white'" },
-          "moveNumberInTurn": { ".validate": "newData.val() === 1 || newData.val() === 2" },
-          "checkBy": { ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white'" },
-          "winner": { ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white' || newData.val() === 'draw'" },
-          "revision": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "turn": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "firstPlacedStone": { ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() < 100" },
-          "consecutivePasses": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "events": { "$index": { ".validate": "newData.isString()" } },
-          "$other": { ".validate": false }
+          "board": {
+            "$index": {
+              ".validate": "$index.matches(/^(0|[1-9][0-9]?)$/) && (newData.val() === '' || newData.val() === 'black' || newData.val() === 'white')"
+            }
+          },
+          "turnStartBoard": {
+            "$index": {
+              ".validate": "$index.matches(/^(0|[1-9][0-9]?)$/) && (newData.val() === '' || newData.val() === 'black' || newData.val() === 'white')"
+            }
+          },
+          "currentPlayer": {
+            ".validate": "newData.val() === 'black' || newData.val() === 'white'"
+          },
+          "moveNumberInTurn": {
+            ".validate": "newData.val() === 1 || newData.val() === 2"
+          },
+          "checkBy": {
+            ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white'"
+          },
+          "winner": {
+            ".validate": "newData.val() === '' || newData.val() === 'black' || newData.val() === 'white' || newData.val() === 'draw'"
+          },
+          "revision": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "turn": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "firstPlacedStone": {
+            ".validate": "newData.isNumber() && newData.val() >= -1 && newData.val() < 100"
+          },
+          "consecutivePasses": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "events": {
+            "$index": {
+              ".validate": "newData.isString()"
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
         },
-        "$other": { ".validate": false }
+        "$other": {
+          ".validate": false
+        },
+        "nextSettings": {
+          ".validate": "newData.hasChildren(['initialTimeMs','clockEnabled','undoMode'])",
+          "initialTimeMs": {
+            ".validate": "newData.isNumber() && newData.val() >= 60000 && newData.val() <= 3600000"
+          },
+          "clockEnabled": {
+            ".validate": "newData.isBoolean()"
+          },
+          "undoMode": {
+            ".validate": "newData.val() === 'all' || newData.val() === 'turn'"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
       }
     },
     "presence": {

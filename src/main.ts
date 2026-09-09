@@ -2,6 +2,7 @@ import "./style.css";
 import { firebaseConfigured } from "./online/firebase";
 import {
   CODE_PATTERN,
+  changeRoomSettings,
   createRoom,
   joinRoom,
   requestRematch,
@@ -34,6 +35,8 @@ import { mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
 import { watchSystemTheme } from "./ui/theme";
+import { openGameSettingsDialog } from "./ui/newGameDialog";
+import { canReviewBack, replayForReview } from "./ui/review";
 const root = document.querySelector<HTMLElement>("#app")!;
 let room: Room | null = null,
   uid = "",
@@ -58,8 +61,16 @@ const moveMarkers = new Map<number, number>();
 let lastPlaced = -1,
   six: number[] = [];
 let defeatSequenceRevision = -1;
+let localReviewCursor:number|null=null,onlineReviewCursor:number|null=null;
+let resultOverlayRevision=-1;
+let resultOverlayTimer:ReturnType<typeof setTimeout>|undefined;
 const toast = new Toast();
 const audio = new AudioManager();
+function clearResultOverlay(){clearTimeout(resultOverlayTimer);resultOverlayTimer=undefined;resultOverlayRevision=-1}
+function showResultOverlay(revision:number){
+  clearResultOverlay();resultOverlayRevision=revision;
+  resultOverlayTimer=setTimeout(()=>{resultOverlayTimer=undefined;resultOverlayRevision=-1;render()},1100);
+}
 watchSystemTheme();
 setLocale(getLocale());
 document.addEventListener("pointerdown", () => void audio.unlock(), { once: true });
@@ -81,7 +92,7 @@ const presenter = new RoomPresenter(
       }
     }
     if (previous && next.game.revision > previous.game.revision) {
-      if((previous.rematch?.generation??0)!==(next.rematch?.generation??0)){moveMarkers.clear();lastPlaced=-1;six=[];defeatSequenceRevision=-1}
+      if((previous.rematch?.generation??0)!==(next.rematch?.generation??0)){moveMarkers.clear();lastPlaced=-1;six=[];defeatSequenceRevision=-1;onlineReviewCursor=null;clearResultOverlay()}
       moveMarkers.set(previous.game.board.filter(Boolean).length, lastPlaced);
       const diff = compareBoards(previous.game.board, next.game.board);
       if (diff.placed.length === 1) lastPlaced = diff.placed[0];
@@ -100,10 +111,11 @@ const presenter = new RoomPresenter(
     if (
       previous &&
       !previous.game.winner &&
-      Boolean(next.game.winner) &&
-      next.game.events.includes("CHECK DEFENSE FAILED")
-    )
-      defeatSequenceRevision = next.game.revision;
+      Boolean(next.game.winner)
+    ) {
+      showResultOverlay(next.game.revision);
+      if(next.game.events.includes("CHECK DEFENSE FAILED"))defeatSequenceRevision=next.game.revision;
+    }
     toast.show(events);
     six = next.game.checkBy && !next.game.winner
       ? [...new Set(getSixLines(next.game.board, next.game.checkBy).flat())]
@@ -118,21 +130,24 @@ function render(change?: BoardChange) {
     root.innerHTML=`<h1>REVERSIX!</h1><p class="local-title">${t("computer.title")}</p><p class="computer-loading" role="status">${t(computerMode.loadFailed?"computer.loadFailed":"computer.loading")}</p><button class="back">${t("game.back")}</button>`;
     root.querySelector<HTMLButtonElement>(".back")!.onclick=leaveLocal;
   } else if (localGame) {
+    const reviewed=localReviewCursor===null?null:replayForReview(localGame.settings,localGame.moveLog,localReviewCursor,localGame.game.revision);
+    const displayGame=reviewed?.game??localGame.game,displayClock=reviewed?.clock??localGame.clock;
     localGameView(
       root,
-      localGame.game,
+      displayGame,
       localLocked,
       localMove,
       leaveLocal,
       {
         change,
-        lastPlaced: localGame.lastPlaced,
-        six,
+        lastPlaced: reviewed?reviewed.lastPlaced:localGame.lastPlaced,
+        six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === localGame.game.revision,
-        canUndo: localGame.canUndo(Date.now()),
+        canUndo: localGame.game.winner?canReviewBack(true,localReviewCursor,localGame.moveLog):localGame.canUndo(Date.now()),
         undo: undoLocal,
         rematch: rematchLocal,
-        clock: localGame.clock,
+        changeOptions:changeLocalOptions,
+        clock: displayClock,
         settings: localGame.settings,
         now: Date.now(),
         countdownEndsAt:localGame.countdownEndsAt,
@@ -143,13 +158,18 @@ function render(change?: BoardChange) {
         computerSide:computerMode?.computerSide,
         computerThinking:computerMode?.thinking,
         computerProgress:computerMode?.progress,
+        finishedGame:localGame.game.winner?localGame.game:undefined,
+        reviewing:localReviewCursor!==null,
+        resultOverlay:resultOverlayRevision===localGame.game.revision&&localReviewCursor===null,
       },
     );
   } else if (room) {
     const player = room.players.black === uid ? "black" : "white";
+    const reviewed=onlineReviewCursor===null?null:replayForReview(room.settings!,room.moveLog!,onlineReviewCursor,room.game.revision);
+    const displayRoom=reviewed?{...room,game:reviewed.game,clock:reviewed.clock}:room;
     gameView(
       root,
-      room,
+      displayRoom,
       code,
       player,
       connected,
@@ -165,18 +185,18 @@ function render(change?: BoardChange) {
       leave,
       {
         change,
-        lastPlaced,
-        six,
+        lastPlaced:reviewed?reviewed.lastPlaced:lastPlaced,
+        six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
-        canUndo:
-          room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
-        undo: () =>
-          void action(async () => {
-            await submitUndo(code, room!.game.revision, serverNow());
-          }),
+        canUndo:room.game.winner?canReviewBack(true,onlineReviewCursor,room.moveLog!):room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
+        undo:undoOnline,
         rematch: () => void action(()=>requestRematch(code,serverNow())),
+        changeOptions:changeOnlineOptions,
         timeoutDecision:(continueGame)=>void action(()=>submitTimeoutDecision(code,continueGame)),
         now: serverNow(),
+        finishedGame:room.game.winner?room.game:undefined,
+        reviewing:onlineReviewCursor!==null,
+        resultOverlay:resultOverlayRevision===room.game.revision&&onlineReviewCursor===null,
       },
     );
   } else
@@ -214,6 +234,7 @@ function render(change?: BoardChange) {
 function startLocalGame(settings: GameSettings) {
   cancelComputerWork();computerMode=null;
   localGame = new LocalGameSession(settings);
+  localReviewCursor=null;clearResultOverlay();
   lastPlaced = -1;
   six = [];
   defeatSequenceRevision = -1;
@@ -224,12 +245,13 @@ function startLocalGame(settings: GameSettings) {
 }
 async function startComputerGame(settings:GameSettings,humanSide:Player){
   cancelComputerWork();localGame=null;const generation=(computerMode?.generation??0)+1;
+  localReviewCursor=null;clearResultOverlay();
   computerMode={humanSide,computerSide:humanSide==="black"?"white":"black",loading:true,loadFailed:false,thinking:false,generation};error="";toast.clear();sessionStorage.removeItem("reversix-room");render();
   computerController??=new ComputerController();
   try{await computerController.load();if(!computerMode||computerMode.generation!==generation)return;localGame=new LocalGameSession(settings);computerMode.loading=false;render()}
   catch{if(!computerMode||computerMode.generation!==generation)return;computerMode.loading=false;computerMode.loadFailed=true;render()}
 }
-function rematchLocal(){if(!localGame?.game.winner)return;cancelComputerWork(false);localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render()}
+function rematchLocal(){if(!localGame?.game.winner)return;cancelComputerWork(false);localReviewCursor=null;clearResultOverlay();localGame.rematch();six=[];defeatSequenceRevision=-1;toast.clear();render();queueComputerMove()}
 function localMove(index: number) {
   if (!localGame || localLocked || localGame.game.winner || (computerMode&&localGame.game.currentPlayer===computerMode.computerSide)) return;
   performLocalMove(index);
@@ -245,12 +267,7 @@ function performLocalMove(index:number){
   six = after.checkBy && !after.winner
     ? [...new Set(getSixLines(after.board, after.checkBy).flat())]
     : [];
-  if (
-    !before.winner &&
-    after.winner &&
-    after.events.includes("CHECK DEFENSE FAILED")
-  )
-    defeatSequenceRevision = after.revision;
+  if(!before.winner&&after.winner){showResultOverlay(after.revision);if(after.events.includes("CHECK DEFENSE FAILED"))defeatSequenceRevision=after.revision}
   localLocked =
     !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   render(change);
@@ -265,7 +282,9 @@ function performLocalMove(index:number){
   }else queueComputerMove(500);
 }
 function undoLocal() {
-  if (!localGame || localLocked || !localGame.canUndo()) return;
+  if(!localGame||localLocked)return;
+  if(localGame.game.winner){const cursor=localReviewCursor??localGame.moveLog.length;if(cursor<=0)return;cancelComputerWork(false);clearResultOverlay();localReviewCursor=cursor-1;render();return}
+  if(!localGame.canUndo())return;
   cancelComputerWork(false);
   localGame.undo();
   six = localGame.game.checkBy && !localGame.game.winner
@@ -276,9 +295,24 @@ function undoLocal() {
   render();
   queueComputerMove(500);
 }
-function decideLocalTimeout(continueGame:boolean){if(!localGame?.timeout.pendingFor)return;cancelComputerWork(false);localGame.decideTimeout(continueGame);render();if(continueGame)queueComputerMove()}
+function changeLocalOptions(){
+  if(!localGame?.game.winner)return;
+  openGameSettingsDialog(computerMode?"computer":"local",localGame.settings,computerMode?.humanSide??"black",(settings,humanSide)=>{
+    cancelComputerWork(false);localReviewCursor=null;clearResultOverlay();six=[];defeatSequenceRevision=-1;toast.clear();localGame=new LocalGameSession(settings);
+    if(computerMode){computerMode={...computerMode,humanSide,computerSide:humanSide==="black"?"white":"black",loading:false,loadFailed:false,thinking:false,progress:undefined,generation:computerMode.generation+1}}
+    render();queueComputerMove();
+  });
+}
+function undoOnline(){
+  if(!room)return;
+  if(room.game.winner){const cursor=onlineReviewCursor??room.moveLog!.length;if(cursor<=0)return;clearResultOverlay();onlineReviewCursor=cursor-1;render();return}
+  void action(async()=>{await submitUndo(code,room!.game.revision,serverNow())});
+}
+function changeOnlineOptions(){if(!room?.game.winner)return;openGameSettingsDialog("room",room.nextSettings??room.settings!,"black",settings=>void action(()=>changeRoomSettings(code,settings)))}
+function decideLocalTimeout(continueGame:boolean){if(!localGame?.timeout.pendingFor)return;cancelComputerWork(false);const before=localGame.game.winner;localGame.decideTimeout(continueGame);if(!before&&localGame.game.winner)showResultOverlay(localGame.game.revision);render();if(continueGame)queueComputerMove()}
 function leaveLocal() {
   cancelComputerWork();computerMode=null;
+  localReviewCursor=null;clearResultOverlay();
   clearTimeout(localTimer);
   localTimer = undefined;
   localLocked = false;
@@ -327,6 +361,7 @@ function leave() {
   presenceEvents.reset();
   six = [];
   defeatSequenceRevision = -1;
+  onlineReviewCursor=null;clearResultOverlay();
   lastPlaced = -1;
   subscriptionGeneration++;
   stopOffset?.(); stopOffset=undefined;
@@ -393,7 +428,7 @@ async function enter(value: string) {
 }
 function serverNow(){return Date.now()+serverOffset}
 setInterval(()=>{
-  if(localGame){if(localGame.tick()) {cancelComputerWork(false);defeatSequenceRevision=-1;toast.show(localGame.game.events)} render();queueComputerMove();return}
+  if(localGame){const before=localGame.game.winner;if(localGame.tick()) {cancelComputerWork(false);defeatSequenceRevision=-1;toast.show(localGame.game.events);if(!before&&localGame.game.winner)showResultOverlay(localGame.game.revision)} render();queueComputerMove();return}
   if(room?.status==="playing"){
     const now=serverNow();
     if(now<room.countdownEndsAt!){render();return}
