@@ -43,7 +43,7 @@ export class BgmManager {
       this.gain =
         this.context.createGain();
 
-      this.gain.gain.value = 3;
+      this.gain.gain.value = 5;
 
       this.source
         .connect(this.gain)
