@@ -34,6 +34,12 @@ export class BgmManager {
   async unlock() {
     if (!this.enabled) return;
 
+    // JSDOM and older browsers can play the element without Web Audio support.
+    if (typeof AudioContext === "undefined") {
+      await this.audio.play().catch(() => undefined);
+      return;
+    }
+
     if (!this.context) {
       this.context = new AudioContext();
 
