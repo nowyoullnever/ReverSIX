@@ -41,7 +41,7 @@ html[data-theme="dark"] {
   font-synthesis: none;
   font-size: 20px;
 }
-html[lang="ko"] { font-size: 17px; }
+html[lang="ko"] { font-size: 22px; }
 html[lang="ko"] h1 { font-size: clamp(2rem, 7vw, 3.2rem); }
 html[lang="ko"] p { line-height:1.52; }
 * {
