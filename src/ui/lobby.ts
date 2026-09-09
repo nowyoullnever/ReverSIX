@@ -26,8 +26,7 @@ export function lobby(
   root.dataset.mode = "lobby";
   delete root.dataset.room;
   delete root.dataset.checkRing;
-  const stones=Array.from({length:25},(_,index)=>`<i class="home-stone ${index%3===0?"white":"black"}"></i>`).join("");
-  root.innerHTML = `<div class="home-reversi-background" aria-hidden="true"><div class="home-stone-grid">${stones}</div></div><div class="home-shell"><h1>ReverSix!</h1><section class="lobby"><button id="new-game">${t("lobby.newGame")}</button></section></div>`;
+  root.innerHTML = `<div class="home-shell"><h1>ReverSix!</h1><section class="lobby"><button id="new-game">${t("lobby.newGame")}</button></section></div>`;
   const newGame = root.querySelector<HTMLButtonElement>("#new-game")!;
   newGame.disabled = busy;
   newGame.onclick = () =>
