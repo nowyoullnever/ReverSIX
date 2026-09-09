@@ -8,7 +8,7 @@ export class BgmManager {
     this.audio = new Audio(`${import.meta.env.BASE_URL}audio/bgm.mp3`);
     this.audio.loop = true;
     this.audio.preload = "auto";
-    this.audio.volume = 0.25;
+    this.audio.volume = 1;
   }
 
   isEnabled() { return this.enabled; }
