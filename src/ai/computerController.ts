@@ -1,4 +1,4 @@
-import { getMoveOptions } from "../game/rules";
+import { safePlacements } from "./encoder";
 import type { GameState } from "../game/types";
 import type { ModelMeta } from "./reversixNet";
 import { MODEL_BASES, type ComputerDifficulty, type NeuralDifficulty } from "./difficulty";
@@ -6,17 +6,20 @@ import type { SearchSelection } from "./search";
 
 interface WorkerLike { postMessage(message:unknown):void; terminate():void; onmessage:((event:MessageEvent)=>void)|null; onerror:((event:ErrorEvent)=>void)|null }
 interface Pending { resolve:(value:unknown)=>void; reject:(error:Error)=>void; progress?:(done:number,total:number)=>void; kind:"load"|"search" }
-export function chooseRandomLegalMove(state:GameState,random:()=>number=Math.random){
-  const legal=getMoveOptions(state).legal;
-  const index=legal[Math.min(legal.length-1,Math.floor(random()*legal.length))]??-1;
+export function easyPlacements(state:GameState){return safePlacements(state);}
+export function chooseEasyMove(state:GameState,random:()=>number=Math.random){
+  const candidates=easyPlacements(state);
+  const index=candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]??-1;
   return { index, revision:state.revision };
 }
+/** Backward-compatible name for the EASY random chooser. */
+export const chooseRandomLegalMove=chooseEasyMove;
 export class ComputerController {
   private channels=new Map<NeuralDifficulty,NeuralChannel>();
   constructor(private factory:()=>WorkerLike=()=>new Worker(new URL("./aiWorker.ts",import.meta.url),{type:"module"})){ }
   load(difficulty:ComputerDifficulty="normal"):Promise<ModelMeta|void>{return difficulty==="easy"?Promise.resolve():this.channel(difficulty).load(difficulty)}
   choose(state:GameState,difficulty:ComputerDifficulty="normal",progress?:(done:number,total:number)=>void){
-    return difficulty==="easy"?Promise.resolve(chooseRandomLegalMove(state)):this.channel(difficulty).choose(state,difficulty,progress);
+    return difficulty==="easy"?Promise.resolve(chooseEasyMove(state)):this.channel(difficulty).choose(state,difficulty,progress);
   }
   cancel(){for(const channel of this.channels.values())channel.cancel()}
   dispose(){for(const channel of this.channels.values())channel.dispose()}

@@ -1,7 +1,9 @@
 import { expect,it,vi } from "vitest";
-import { ComputerController,chooseRandomLegalMove } from "../src/ai/computerController";
-import { createGame } from "../src/game/gameState";
+import { ComputerController,chooseEasyMove,chooseRandomLegalMove,easyPlacements } from "../src/ai/computerController";
+import { createGame,playMove } from "../src/game/gameState";
+import { emptyBoard } from "../src/game/board";
 import { getMoveOptions } from "../src/game/rules";
+import { safePlacements } from "../src/ai/encoder";
 
 class FakeWorker {
   onmessage:((event:MessageEvent)=>void)|null=null;
@@ -49,6 +51,27 @@ it("chooses EASY moves from the authoritative legal set without creating a worke
   expect(chooseRandomLegalMove(state,()=>.99).index).toBe(legal[3]);
 });
 
+it("excludes CHECK moves that cannot survive the turn",()=>{
+  const board=["","","","","black","","","","","","","","","","black","","","","","","","","","white","black","black","black","","white","","","black","white","white","black","black","black","white","","","white","white","black","white","black","black","white","","white","","","","white","black","black","black","black","black","black","","","","black","","white","","white","black","","","","","","","","","","black","","","","","","","","","","","","","","","","","","","","",""] as (""|"black"|"white")[];
+  const turnStartBoard=["","","","","black","","","","","","","","","","black","","","","","","","","","","black","black","black","","white","","","black","black","black","black","black","black","white","","","white","white","black","white","black","black","white","","white","","","","white","black","black","black","black","black","black","","","","black","","white","","white","black","","","","","","","","","","","black","","","","","","","","","","","","","","","","","","",""] as (""|"black"|"white")[];
+  const state={...createGame(),board,turnStartBoard,currentPlayer:"white" as const,turn:15,moveNumberInTurn:2 as const,firstPlacedStone:23,checkBy:"black" as const,revision:30};
+  expect(getMoveOptions(state).legal).toEqual([5,13,15,16,20,21,22,27,30,51,59,63,65,68,72,78,88]);
+  expect(easyPlacements(state)).toEqual([59,65,78]);
+  expect([0,.34,.99].map(random=>chooseEasyMove(state,()=>random).index)).toEqual([59,65,78]);
+});
+it("uses only CHECK-defense candidates for EASY while keeping them uniformly random",()=>{
+  const board=emptyBoard();
+  for(const index of [40,41,42,43,44,45])board[index]="black";
+  board[54]="white";board[12]="black";board[22]="white";
+  const state={...createGame(),board,turnStartBoard:[...board],currentPlayer:"white" as const,checkBy:"black" as const,turn:1};
+  const legal=getMoveOptions(state).legal,defensive=safePlacements(state);
+  expect(easyPlacements(state)).toEqual(defensive);
+  expect(defensive).toContain(34);
+  expect(playMove(state,"white",34).checkBy).toBe("black");
+  expect(defensive).toContain(34);
+  for(const random of [0,.25,.5,.75,.99])expect(defensive).toContain(chooseEasyMove(state,()=>random).index);
+  expect(legal).toContain(chooseEasyMove(state,()=>.5).index);
+});
 it("rejects a cancelled search and ignores its late result",async()=>{
   const worker=new FakeWorker(),controller=new ComputerController(()=>worker);
   const load=controller.load(),loadMessage=worker.messages[0] as {id:number};
