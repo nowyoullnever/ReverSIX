@@ -4,12 +4,23 @@ import { encode,safePlacements } from "./encoder";
 import type { NetworkOutput } from "./reversixNet";
 
 export interface Network { forward(input:Float32Array):NetworkOutput }
-export interface SearchOptions { sims?:number; candidates?:number; random?:()=>number; onProgress?:(done:number,total:number)=>void|Promise<void>; cancelled?:()=>boolean }
+export type SearchSelection = "best" | "middle";
+export interface SearchOptions { sims?:number; candidates?:number; selection?:SearchSelection; random?:()=>number; onProgress?:(done:number,total:number)=>void|Promise<void>; cancelled?:()=>boolean }
+export const NORMAL_TOP_EXCLUDE=.2,NORMAL_BOTTOM_EXCLUDE=.2;
 const C_VISIT=50,C_SCALE=1;
 const softmax=(values:number[])=>{const max=Math.max(...values),exp=values.map(value=>Math.exp(value-max)),sum=exp.reduce((a,b)=>a+b,0);return exp.map(value=>value/sum)};
 const sigma=(q:number,maxVisits:number)=>(C_VISIT+maxVisits)*C_SCALE*q;
 const gumbel=(random:()=>number)=>-Math.log(-Math.log(Math.max(random(),1e-12))+1e-12);
 export function halvingSchedule(simulations:number,candidates:number){const phases=Math.max(1,Math.ceil(Math.log2(Math.max(candidates,2)))),out:Array<[number,number]>=[];let count=candidates;for(let i=0;i<phases;i++){if(count<1)break;out.push([count,Math.max(1,Math.floor(simulations/(phases*count)))]);if(count===1)break;count=Math.floor(count/2)}return out}
+export function selectMiddleRankedMove<T>(rankedMoves:readonly T[],random:()=>number=Math.random):T|undefined{
+  const count=rankedMoves.length;
+  if(count<=1)return rankedMoves[0];
+  if(count===2)return rankedMoves[Math.min(1,Math.floor(random()*2))];
+  if(count===3)return rankedMoves[1];
+  if(count===4)return rankedMoves[1+Math.min(1,Math.floor(random()*2))];
+  const top=Math.ceil(count*NORMAL_TOP_EXCLUDE),bottom=Math.ceil(count*NORMAL_BOTTOM_EXCLUDE),middle=rankedMoves.slice(top,count-bottom);
+  return middle[Math.min(middle.length-1,Math.floor(random()*middle.length))];
+}
 
 class SearchNode {
   readonly player:Player;readonly terminal:boolean;expanded=false;legal:number[]=[];prior:number[]=[];visits=new Int32Array();value=0;wins=new Float64Array();children:Array<SearchNode|null>=[];
@@ -45,6 +56,11 @@ export async function searchPlacement(net:Network,state:GameState,options:Search
     }
     if(candidateCount>1){const q=root.completedQ(),max=root.maxVisits();candidates=current.map(index=>[noise[index]+root.prior[index]+sigma(q[index],max),index] as const).sort((a,b)=>b[0]-a[0]).slice(0,Math.max(1,Math.floor(candidateCount/2))).map(item=>item[1])}
   }
-  const q=root.completedQ(),max=root.maxVisits();let best=candidates[0],bestScore=-Infinity;for(const index of candidates){const score=noise[index]+root.prior[index]+sigma(q[index],max);if(score>bestScore){bestScore=score;best=index}}
+  const q=root.completedQ(),max=root.maxVisits();
+  if(options.selection==="middle"){
+    const rankedMoves=root.legal.map((index,position)=>({index,evaluationScore:root.prior[position]+sigma(q[position],max)})).sort((a,b)=>b.evaluationScore-a.evaluationScore);
+    return selectMiddleRankedMove(rankedMoves,random)?.index??-1;
+  }
+  let best=candidates[0],bestScore=-Infinity;for(const index of candidates){const score=noise[index]+root.prior[index]+sigma(q[index],max);if(score>bestScore){bestScore=score;best=index}}
   return root.legal[best];
 }

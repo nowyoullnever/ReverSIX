@@ -247,8 +247,8 @@ it("collects the human side and shared settings for VS. COMPUTER",()=>{
   const dialog=openNewGameDialog(true,false,{local:vi.fn(),computer,create:vi.fn(),join:vi.fn()});
   dialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
   expect(dialog.textContent).toContain("DIFFICULTY");
-  expect([...dialog.querySelectorAll<HTMLButtonElement>("[data-difficulty]")].map(button=>button.textContent)).toEqual(["NORMAL","HARD"]);
-  expect(dialog.textContent).not.toContain("EASY");
+  expect([...dialog.querySelectorAll<HTMLButtonElement>("[data-difficulty]")].map(button=>button.textContent)).toEqual(["EASY","NORMAL","HARD"]);
+  expect(dialog.textContent).toContain("EASY");
   dialog.querySelector<HTMLButtonElement>('[data-difficulty="hard"]')!.click();
   expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')!.value).toBe("black");
   const white=dialog.querySelector<HTMLInputElement>('input[name="humanSide"][value="white"]')!;
@@ -262,7 +262,7 @@ it("collects the human side and shared settings for VS. COMPUTER",()=>{
   koreanDialog.querySelector<HTMLButtonElement>(".new-game-computer")!.click();
   expect(koreanDialog.textContent).toContain("보통");
   expect(koreanDialog.textContent).toContain("어려움");
-  expect(koreanDialog.textContent).not.toContain("쉬움");
+  expect(koreanDialog.textContent).toContain("쉬움");
 });
 
 it("closes the NEW GAME menu with both × and Escape", () => {
@@ -276,6 +276,6 @@ it("closes the NEW GAME menu with both × and Escape", () => {
   expect(escapeDialog.isConnected).toBe(false);
 });
 it("hides both clocks and removes the settings summary when time is disabled",()=>{const root=document.createElement("main");localGameView(root,createGame(),false,vi.fn(),vi.fn(),{canUndo:false,undo:vi.fn(),clock:{blackRemainingMs:300000,whiteRemainingMs:300000,activeSince:0,running:false},settings:{...DEFAULT_SETTINGS,clockEnabled:false},now:0,countdownEndsAt:0});expect(root.querySelector(".clock-board-layout")?.classList.contains("no-clock")).toBe(true);expect([...root.querySelectorAll<HTMLElement>(".player-clock")].every(clock=>clock.hidden)).toBe(true);expect(root.textContent).not.toContain("∞");expect(root.querySelector(".game-settings-summary")).toBeNull()});
-it("reopens game options with the current values selected",()=>{const submit=vi.fn();const settings={initialTimeMs:600000,clockEnabled:false,undoMode:"turn" as const,checkRingEnabled:false};const dialog=openGameSettingsDialog("computer",settings,"white",submit);expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')?.value).toBe("white");expect(dialog.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="undoMode"]:checked')?.value).toBe("turn");expect(dialog.querySelector<HTMLInputElement>('input[name="checkRingEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="minutes"]')?.value).toBe("10.0");expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe("START GAME")});
+it("reopens game options with the current values selected",()=>{const submit=vi.fn();const settings={initialTimeMs:600000,clockEnabled:false,undoMode:"turn" as const,checkRingEnabled:false};const dialog=openGameSettingsDialog("computer",settings,"white",submit,undefined,"easy");expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')?.value).toBe("white");expect(dialog.querySelector<HTMLInputElement>('input[name="computerDifficulty"]:checked')?.value).toBe("easy");expect([...dialog.querySelectorAll<HTMLInputElement>('input[name="computerDifficulty"]')].map(input=>input.value)).toEqual(["easy","normal","hard"]);expect(dialog.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="undoMode"]:checked')?.value).toBe("turn");expect(dialog.querySelector<HTMLInputElement>('input[name="checkRingEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="minutes"]')?.value).toBe("10.0");expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe("START GAME")});
 
 it("submits the CHECK RING game option independently of time and undo",()=>{const local=vi.fn();const dialog=openNewGameDialog(true,false,{local,computer:vi.fn(),create:vi.fn(),join:vi.fn()});dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const off=dialog.querySelector<HTMLInputElement>('input[name="checkRingEnabled"][value="off"]')!;off.checked=true;dialog.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenCalledWith({...DEFAULT_SETTINGS,checkRingEnabled:false})});
