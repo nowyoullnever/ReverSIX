@@ -33,6 +33,14 @@ it("sizes the board from available width without a viewport-height cap",()=>{
   expect(css).not.toContain("calc(100dvh - 290px)");
 });
 
+it("lets the board own every 10 by 10 grid track",()=>{
+  const boardRule=css.match(/\.board\s*\{[^}]*\}/s)?.[0]??"",cellRule=css.match(/\.cell\s*\{[^}]*\}/s)?.[0]??"";
+  expect(boardRule).toContain("grid-template-columns: repeat(10, minmax(0, 1fr))");
+  expect(boardRule).toContain("grid-template-rows: repeat(10, minmax(0, 1fr))");
+  expect(cellRule).toMatch(/width:\s*100%;/);
+  expect(cellRule).toMatch(/height:\s*100%;/);
+  expect(cellRule).not.toContain("aspect-ratio");
+});
 it("places UNDO before BACK TO LOBBY in every game control DOM",()=>{
   for(const view of [onlineView,localView]) expect(view.indexOf('class="undo"')).toBeLessThan(view.indexOf('class="back"'));
 });
