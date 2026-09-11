@@ -119,9 +119,12 @@ it("keeps unchanged defeat-SIX SVG lines across repeated board updates", () => {
   game.revision = 8;
   const presentation = { defeatLines: [[40, 41, 42, 43, 44, 45]], defeatPlayer: "black" as const };
   const board = boardView(game, false, vi.fn(), presentation);
-  const line = board.querySelector(".defeat-six-line");
+  const overlay=board.querySelector<SVGSVGElement>(":scope > .six-lines")!,line = board.querySelector(".defeat-six-line");
+  expect(board.lastElementChild).toBe(overlay);
+  expect(board.querySelectorAll(":scope > .cell")).toHaveLength(100);
   updateBoard(board, game, false, vi.fn(), presentation);
   expect(board.querySelector(".defeat-six-line")).toBe(line);
+  expect(board.lastElementChild).toBe(overlay);
   expect(line?.classList.contains("winner-black")).toBe(true);
 });
 it("emits join once, CHECK, defense, counter-check and PASS transitions", () => {

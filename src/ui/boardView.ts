@@ -28,7 +28,7 @@ function drawDefeatLines(board: HTMLElement, lines: number[][] = [], player?:Pla
     overlay.setAttribute("viewBox", "0 0 100 100");
     overlay.setAttribute("preserveAspectRatio", "none");
     overlay.setAttribute("aria-hidden", "true");
-    board.prepend(overlay);
+    board.append(overlay);
   }
   const key=player&&lines.length?`${player}:${lines.map(line=>line.join(",")).sort().join("|")}`:"";
   if(overlay.dataset.linesKey===key)return;

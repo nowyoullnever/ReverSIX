@@ -41,6 +41,16 @@ it("lets the board own every 10 by 10 grid track",()=>{
   expect(cellRule).toMatch(/height:\s*100%;/);
   expect(cellRule).not.toContain("aspect-ratio");
 });
+it("keeps victory SIX lines above every board-cell graphic",()=>{
+  const boardRule=css.match(/\.board\s*\{[^}]*\}/s)?.[0]??"",cellRule=css.match(/\.cell\s*\{[^}]*\}/s)?.[0]??"",stoneRule=css.match(/\.stone\s*\{[^}]*\}/s)?.[0]??"",linesRule=css.match(/\.six-lines\s*\{[^}]*\}/s)?.[0]??"";
+  expect(boardRule).toContain("isolation: isolate");
+  expect(cellRule).toContain("z-index: 0");
+  expect(stoneRule).toContain("z-index: 1");
+  expect(linesRule).toContain("z-index: 10");
+  expect(css).toMatch(/\.countdown-overlay\s*\{[^}]*z-index:20/s);
+  expect(board).toContain("board.append(overlay)");
+  expect(board).not.toContain("board.prepend(overlay)");
+});
 it("places UNDO before BACK TO LOBBY in every game control DOM",()=>{
   for(const view of [onlineView,localView]) expect(view.indexOf('class="undo"')).toBeLessThan(view.indexOf('class="back"'));
 });
