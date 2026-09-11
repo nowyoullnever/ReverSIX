@@ -40,7 +40,6 @@ function drawDefeatLines(board: HTMLElement, lines: number[][] = [], player?:Pla
       const path = svg("line");
       path.classList.add("defeat-six-line");
       if(player)path.classList.add(`winner-${player}`);
-      path.setAttribute("pathLength","1");
       path.setAttribute("x1", `${(start % 10) * 10 + 5}`);
       path.setAttribute("y1", `${Math.floor(start / 10) * 10 + 5}`);
       path.setAttribute("x2", `${(end % 10) * 10 + 5}`);

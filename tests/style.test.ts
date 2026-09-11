@@ -14,12 +14,13 @@ it("anchors CHECK rings to stones with fixed contrasting colors",()=>{
   expect(css).not.toContain(".six-highlight::after");
 });
 
-it("draws each result line once before retaining a solid line",()=>{
-  expect(css).toContain("stroke-dasharray: 1");
-  expect(css).toContain("defeat-line-draw 650ms");
+it("renders every result line as a solid SVG line",()=>{
+  expect(css).not.toContain("stroke-dasharray");
+  expect(css).not.toContain("stroke-dashoffset");
+  expect(css).not.toContain("defeat-line-draw");
   expect(css).toContain(".winner-black { stroke:#fff; }");
   expect(css).toContain(".winner-white { stroke:#000; }");
-  expect(board).toContain('path.setAttribute("pathLength","1")');
+  expect(board).not.toContain('path.setAttribute("pathLength","1")');
 });
 
 it("uses only the required forbidden board marker",()=>{

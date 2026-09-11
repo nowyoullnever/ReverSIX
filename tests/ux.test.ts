@@ -122,6 +122,7 @@ it("keeps unchanged defeat-SIX SVG lines across repeated board updates", () => {
   const overlay=board.querySelector<SVGSVGElement>(":scope > .six-lines")!,line = board.querySelector(".defeat-six-line");
   expect(board.lastElementChild).toBe(overlay);
   expect(board.querySelectorAll(":scope > .cell")).toHaveLength(100);
+  expect(overlay.querySelectorAll(".defeat-six-line")).toHaveLength(1);
   updateBoard(board, game, false, vi.fn(), presentation);
   expect(board.querySelector(".defeat-six-line")).toBe(line);
   expect(board.lastElementChild).toBe(overlay);

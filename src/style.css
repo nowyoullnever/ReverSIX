@@ -419,13 +419,9 @@ main[data-check-ring="off"] .six-highlight .stone::before { display:none; }
   stroke-linecap: round;
   vector-effect: non-scaling-stroke;
   opacity: .82;
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
 }
 .defeat-six-line.winner-black { stroke:#fff; }
 .defeat-six-line.winner-white { stroke:#000; }
-.defeat-sequence .defeat-six-line { animation:defeat-line-draw 650ms ease-out both; }
-@keyframes defeat-line-draw { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
 .defeat-six .stone {
   outline: 2px solid #000;
   outline-offset: 4px;

@@ -278,7 +278,7 @@ it("marks a live defense-failure presentation for one-time SIX sequencing", () =
   gameView(root, failedRoom([40, 41, 42, 43, 44, 45]), "ABC234", "white", true, true, false, vi.fn(), vi.fn(), { defeatSequence: true });
   expect(root.querySelector(".board")?.classList.contains("defeat-sequence")).toBe(true);
   expect(root.querySelector(".result-detail")?.classList.contains("result-enter")).toBe(true);
-  expect(root.querySelector(".defeat-six-line")?.getAttribute("pathLength")).toBe("1");
+  expect(root.querySelector(".defeat-six-line")?.hasAttribute("pathLength")).toBe(false);
 });
 it("without Firebase, lobby keeps NEW GAME available", () => {
   const root = document.createElement("main");
