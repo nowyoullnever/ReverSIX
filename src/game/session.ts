@@ -73,15 +73,22 @@ export function commitElapsed(clock: ClockState, player: Player, now: number) {
   else next.whiteRemainingMs = Math.max(0, clock.whiteRemainingMs - elapsed);
   return { clock: next, elapsedMs: elapsed };
 }
-/** Returns the placements from the most recent turn with actual moves. */
-export function currentPlacementMarkers(records: MoveRecord[]): number[] {
-  let game=createGame(),markers:number[]=[];
-  for(const record of records){
-    if(game.moveNumberInTurn===1)markers=[];
-    markers.push(record.index);
-    game=playMove(game,record.player,record.index);
+/** Returns placements from the last turn that actually completed. */
+export function lastCompletedTurnPlacements(records: MoveRecord[]): number[] {
+  let game = createGame();
+  let activeTurnPlacements: number[] = [];
+  let completedTurnPlacements: number[] = [];
+  for (const record of records) {
+    const turnBeforeMove = game.turn;
+    activeTurnPlacements.push(record.index);
+    const next = playMove(game, record.player, record.index);
+    if (next.turn > turnBeforeMove || next.winner) {
+      completedTurnPlacements = activeTurnPlacements;
+      activeTurnPlacements = [];
+    }
+    game = next;
   }
-  return markers;
+  return completedTurnPlacements;
 }
 export function replayMoves(settings: GameSettings, records: MoveRecord[], revision: number) {
   let game = createGame();

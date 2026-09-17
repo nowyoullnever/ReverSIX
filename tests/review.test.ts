@@ -13,10 +13,12 @@ it("reviews a finished game one placement at a time down to the initial four sto
   const finalBoard=structuredClone(session.game.board);
   expect(canReviewBack(true,null,records)).toBe(true);
   const two=replayForReview(session.settings,records,2,session.game.revision);
+  const three=replayForReview(session.settings,records,3,session.game.revision);
   const one=replayForReview(session.settings,records,1,session.game.revision);
   const zero=replayForReview(session.settings,records,0,session.game.revision);
   expect(two.game.board).not.toEqual(finalBoard);
-  expect(two.turnPlacements).toEqual([records[1].index]);
+  expect(two.turnPlacements).toEqual([records[0].index]);
+  expect(three.turnPlacements).toEqual([records[1].index,records[2].index]);
   expect(one.turnPlacements).toEqual([records[0].index]);
   expect(zero.game.board.filter(Boolean)).toHaveLength(4);
   expect(zero.clock.running).toBe(false);

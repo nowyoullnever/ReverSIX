@@ -38,25 +38,28 @@ it("uses the shared engine for the opening and two-move turn sequence", () => {
   expect(local.game.moveNumberInTurn).toBe(1);
 });
 
-it("keeps both turn-placement markers until the next player makes a first move and restores them on undo", () => {
+it("shows only the most recent completed turn placements and restores them on undo", () => {
   const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   local.play(34);
   const opening=local.moveLog[0].index;
   expect(local.turnPlacements).toEqual([opening]);
   local.play(getMoveOptions(local.game).legal[0]);
   const whiteFirst=local.moveLog.at(-1)!.index;
-  expect(local.turnPlacements).toEqual([whiteFirst]);
+  expect(local.turnPlacements).toEqual([opening]);
   local.play(getMoveOptions(local.game).legal[0]);
   const whiteSecond=local.moveLog.at(-1)!.index;
   expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
   expect(local.game.currentPlayer).toBe("black");
   local.play(getMoveOptions(local.game).legal[0]);
   const blackFirst=local.moveLog.at(-1)!.index;
-  expect(local.turnPlacements).toEqual([blackFirst]);
+  expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
+  local.play(getMoveOptions(local.game).legal[0]);
+  const blackSecond=local.moveLog.at(-1)!.index;
+  expect(local.turnPlacements).toEqual([blackFirst,blackSecond]);
   local.undo();
   expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
   local.undo();
-  expect(local.turnPlacements).toEqual([whiteFirst]);
+  expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
   local.undo();
   expect(local.turnPlacements).toEqual([opening]);
 });

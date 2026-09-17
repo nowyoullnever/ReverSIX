@@ -1,5 +1,5 @@
 import { createGame, playMove } from "../game/gameState";
-import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, initialClock, mayUndo, remainingAt, replayMoves, currentPlacementMarkers, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
+import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, initialClock, lastCompletedTurnPlacements, mayUndo, remainingAt, replayMoves, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
 import type { GameState, Player } from "../game/types";
 import { compareBoards, type BoardChange } from "../ui/transitions";
 
@@ -56,6 +56,6 @@ export class LocalGameSession {
   }
   rematch(now = Date.now()) { this.game = createGame(); this.countdownEndsAt=now+COUNTDOWN_MS;this.timeout={...EMPTY_TIMEOUT};this.clock = initialClock(this.settings, this.countdownEndsAt, this.settings.clockEnabled); this.moveLog = []; }
   remaining(player: Player, now = Date.now()) { return remainingAt(this.clock, player, now, this.game.currentPlayer); }
-  get turnPlacements() { return currentPlacementMarkers(this.moveLog); }
+  get turnPlacements() { return lastCompletedTurnPlacements(this.moveLog); }
   get historyLength() { return this.moveLog.length; }
 }

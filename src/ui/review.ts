@@ -1,4 +1,4 @@
-import { currentPlacementMarkers, replayMoves, type GameSettings, type MoveRecord } from "../game/session";
+import { lastCompletedTurnPlacements, replayMoves, type GameSettings, type MoveRecord } from "../game/session";
 
 export function canReviewBack(finished:boolean,cursor:number|null,records:MoveRecord[]){
   return finished&&(cursor??records.length)>0;
@@ -14,6 +14,6 @@ export function replayForReview(settings:GameSettings,records:MoveRecord[],curso
       activeSince:0,
       running:false,
     },
-    turnPlacements:currentPlacementMarkers(records.slice(0,cursor)),
+    turnPlacements:lastCompletedTurnPlacements(records.slice(0,cursor)),
   };
 }

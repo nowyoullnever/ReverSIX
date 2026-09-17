@@ -32,7 +32,7 @@ import { AudioManager } from "./audio/audio";
 import { BgmManager } from "./audio/bgm";
 import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
-import { countdownRenderState, currentPlacementMarkers, mayUndo, remainingAt, type GameSettings } from "./game/session";
+import { countdownRenderState, lastCompletedTurnPlacements, mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
 import type { ComputerDifficulty } from "./ai/difficulty";
@@ -166,7 +166,7 @@ function render(change?: BoardChange) {
       leave,
       {
         change,
-        turnPlacements:reviewed?reviewed.turnPlacements:currentPlacementMarkers(room.moveLog!),
+        turnPlacements:reviewed?reviewed.turnPlacements:lastCompletedTurnPlacements(room.moveLog!),
         six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
         canUndo:room.game.winner?canReviewBack(true,onlineReviewCursor,room.moveLog!):room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
