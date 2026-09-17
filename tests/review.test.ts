@@ -16,8 +16,8 @@ it("reviews a finished game one placement at a time down to the initial four sto
   const one=replayForReview(session.settings,records,1,session.game.revision);
   const zero=replayForReview(session.settings,records,0,session.game.revision);
   expect(two.game.board).not.toEqual(finalBoard);
-  expect(two.lastPlaced).toBe(records[1].index);
-  expect(one.lastPlaced).toBe(records[0].index);
+  expect(two.turnPlacements).toEqual([records[1].index]);
+  expect(one.turnPlacements).toEqual([records[0].index]);
   expect(zero.game.board.filter(Boolean)).toHaveLength(4);
   expect(zero.clock.running).toBe(false);
   expect(canReviewBack(true,0,records)).toBe(false);

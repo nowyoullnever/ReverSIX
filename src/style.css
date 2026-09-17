@@ -384,20 +384,19 @@ input {
     background: var(--new-color);
   }
 }
-.last-placed .stone:after {
-  content: "";
-  position: absolute;
-  width: 13%;
-  height: 13%;
-  border-radius: 50%;
-  inset: 43.5%;
-  background: #777;
-  border: 1px solid #fff;
+.turn-placed .stone::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:13%;
+  height:13%;
+  border-radius:50%;
+  pointer-events:none;
+  background:#fff;
 }
-.white.last-placed .stone:after {
-  background: #000;
-  border-color: #000;
-}
+.white.turn-placed .stone::after { background:#000; }
 .six-highlight .stone::before { content:""; position:absolute; inset:-6px; border-radius:50%; pointer-events:none; transform-origin:center; z-index:3; animation:check-six-pulse 1000ms ease-in-out infinite; }
 .black.six-highlight .stone::before { border:3px solid #fff; box-shadow:0 0 0 1px rgb(0 0 0 / .2); }
 .white.six-highlight .stone::before { border:3px solid #000; }
@@ -692,16 +691,17 @@ main[data-check-ring="off"] .six-highlight .stone::before { display:none; }
 .white .stone {
   background: #fff;
 }
-.legal:after {
-  content: "";
-  width: 13%;
-  height: 13%;
-  border-radius: 50%;
-  background: #999;
-}
-.first .stone {
-  outline: 1px dashed #777;
-  outline-offset: 2px;
+.legal::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:13%;
+  height:13%;
+  border-radius:50%;
+  background:#999;
+  pointer-events:none;
 }
 .forbidden {
   font-size: clamp(14px, 4vw, 26px);

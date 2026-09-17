@@ -104,7 +104,7 @@ it("same-revision UI updates preserve animated DOM and input remains locked", ()
   const board = boardView(a.game, true, click);
   updateBoard(board, b.game, false, click, {
     change: moveTransition(a, b),
-    lastPlaced: 34,
+    turnPlacements: [34],
   });
   const stone = board.querySelectorAll(".cell")[44].firstChild;
   expect((stone as HTMLElement).classList.contains("stone-flip")).toBe(true);
@@ -112,6 +112,17 @@ it("same-revision UI updates preserve animated DOM and input remains locked", ()
   expect(board.querySelectorAll(".cell")[44].firstChild).toBe(stone);
   expect(board.querySelectorAll("button:not(:disabled)")).toHaveLength(0);
 });
+it("marks every placement in the current turn",()=>{
+  const game=createGame(),move=vi.fn();
+  game.board[34]="black";game.board[56]="black";game.revision=1;
+  const board=boardView(game,false,move,{turnPlacements:[34,56]});
+  expect(board.querySelectorAll(".turn-placed")).toHaveLength(2);
+  expect(board.querySelectorAll(".black.turn-placed .stone")).toHaveLength(2);
+  updateBoard(board,game,false,move,{turnPlacements:[56]});
+  expect(board.querySelectorAll(".turn-placed")).toHaveLength(1);
+  expect(board.querySelectorAll(".turn-placed")[0]).toBe(board.querySelectorAll(".cell")[56]);
+});
+
 it("keeps unchanged defeat-SIX SVG lines across repeated board updates", () => {
   const game = createGame();
   game.board.fill("");

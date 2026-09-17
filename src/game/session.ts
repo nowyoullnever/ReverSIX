@@ -73,6 +73,16 @@ export function commitElapsed(clock: ClockState, player: Player, now: number) {
   else next.whiteRemainingMs = Math.max(0, clock.whiteRemainingMs - elapsed);
   return { clock: next, elapsedMs: elapsed };
 }
+/** Returns the placements from the most recent turn with actual moves. */
+export function currentPlacementMarkers(records: MoveRecord[]): number[] {
+  let game=createGame(),markers:number[]=[];
+  for(const record of records){
+    if(game.moveNumberInTurn===1)markers=[];
+    markers.push(record.index);
+    game=playMove(game,record.player,record.index);
+  }
+  return markers;
+}
 export function replayMoves(settings: GameSettings, records: MoveRecord[], revision: number) {
   let game = createGame();
   let black = settings.initialTimeMs;

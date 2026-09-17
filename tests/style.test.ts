@@ -52,6 +52,16 @@ it("keeps victory SIX lines above every board-cell graphic",()=>{
   expect(board).toContain("board.append(overlay)");
   expect(board).not.toContain("board.prepend(overlay)");
 });
+it("centers legal and turn-placement markers without legacy offsets",()=>{
+  expect(css).toContain(".turn-placed .stone::after");
+  expect(css).toContain(".legal::after");
+  expect(css).toMatch(/\.turn-placed \.stone::after\s*\{[^}]*left:50%;[^}]*top:50%;[^}]*translate\(-50%, -50%\)/s);
+  expect(css).toMatch(/\.legal::after\s*\{[^}]*left:50%;[^}]*top:50%;[^}]*translate\(-50%, -50%\)/s);
+  expect(css).toContain(".white.turn-placed .stone::after { background:#000; }");
+  expect(css).not.toContain("last-placed");
+  expect(css).not.toContain(".first .stone");
+});
+
 it("places UNDO before BACK TO LOBBY in every game control DOM",()=>{
   for(const view of [onlineView,localView]) expect(view.indexOf('class="undo"')).toBeLessThan(view.indexOf('class="back"'));
 });

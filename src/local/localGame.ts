@@ -1,5 +1,5 @@
 import { createGame, playMove } from "../game/gameState";
-import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, initialClock, mayUndo, remainingAt, replayMoves, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
+import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, initialClock, mayUndo, remainingAt, replayMoves, currentPlacementMarkers, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
 import type { GameState, Player } from "../game/types";
 import { compareBoards, type BoardChange } from "../ui/transitions";
 
@@ -8,7 +8,6 @@ export class LocalGameSession {
   game = createGame();
   clock: ClockState;
   moveLog: MoveRecord[] = [];
-  lastPlaced = -1;
   countdownEndsAt: number;
   timeout: TimeoutState = { ...EMPTY_TIMEOUT };
   constructor(public readonly settings: GameSettings = DEFAULT_SETTINGS, now = Date.now()) {
@@ -29,7 +28,6 @@ export class LocalGameSession {
     this.clock.activeSince = now;
     this.clock.running = this.settings.clockEnabled && !this.timeout.continueWithoutClock && !after.winner;
     this.game = after;
-    this.lastPlaced = change.placed.length === 1 ? change.placed[0] : -1;
     return { before, after, change };
   }
   canUndo(now=Date.now()) { return now>=this.countdownEndsAt && !this.timeout.pendingFor && mayUndo(this.game, this.moveLog, this.settings.undoMode); }
@@ -39,7 +37,6 @@ export class LocalGameSession {
     const rebuilt = replayMoves(this.settings, this.moveLog, this.game.revision + 1);
     this.game = rebuilt.game;
     this.clock = { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: this.settings.clockEnabled && !this.timeout.continueWithoutClock };
-    this.lastPlaced = this.moveLog.at(-1)?.index ?? -1;
     return this.game;
   }
   tick(now = Date.now()) {
@@ -57,7 +54,8 @@ export class LocalGameSession {
     if(continueGame){this.timeout={pendingFor:"",continueWithoutClock:true};this.game={...this.game,revision:this.game.revision+1,events:[]};return}
     this.timeout={...EMPTY_TIMEOUT};this.game={...this.game,winner:player==="black"?"white":"black",revision:this.game.revision+1,events:[`${player.toUpperCase()} TIMEOUT`]};
   }
-  rematch(now = Date.now()) { this.game = createGame(); this.countdownEndsAt=now+COUNTDOWN_MS;this.timeout={...EMPTY_TIMEOUT};this.clock = initialClock(this.settings, this.countdownEndsAt, this.settings.clockEnabled); this.moveLog = []; this.lastPlaced = -1; }
+  rematch(now = Date.now()) { this.game = createGame(); this.countdownEndsAt=now+COUNTDOWN_MS;this.timeout={...EMPTY_TIMEOUT};this.clock = initialClock(this.settings, this.countdownEndsAt, this.settings.clockEnabled); this.moveLog = []; }
   remaining(player: Player, now = Date.now()) { return remainingAt(this.clock, player, now, this.game.currentPlayer); }
+  get turnPlacements() { return currentPlacementMarkers(this.moveLog); }
   get historyLength() { return this.moveLog.length; }
 }

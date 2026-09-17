@@ -32,7 +32,7 @@ import { AudioManager } from "./audio/audio";
 import { BgmManager } from "./audio/bgm";
 import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
-import { countdownRenderState, mayUndo, remainingAt, type GameSettings } from "./game/session";
+import { countdownRenderState, currentPlacementMarkers, mayUndo, remainingAt, type GameSettings } from "./game/session";
 import type { Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
 import type { ComputerDifficulty } from "./ai/difficulty";
@@ -60,9 +60,7 @@ let serverOffset=0;
 let stopOffset:(()=>void)|undefined;
 let timeoutPending=false;
 let onlineCountdownActive=false;
-const moveMarkers = new Map<number, number>();
-let lastPlaced = -1,
-  six: number[] = [];
+let six: number[] = [];
 let defeatSequenceRevision = -1;
 let localReviewCursor:number|null=null,onlineReviewCursor:number|null=null;
 let resultOverlayRevision=-1;
@@ -86,34 +84,9 @@ const presenceEvents = new PresenceEvents();
 const presenter = new RoomPresenter(
   (previous, next, change) => {
     room = next;
-    if (!previous) {
-      try {
-        const saved = JSON.parse(
-          sessionStorage.getItem(`reversix-marker-${code}`) ?? "null",
-        );
-        lastPlaced =
-          saved?.revision === next.game.revision && next.game.board[saved.index]
-            ? saved.index
-            : -1;
-      } catch {
-        lastPlaced = -1;
-      }
+    if ((previous?.rematch?.generation??0)!==(next.rematch?.generation??0)) {
+      six=[];defeatSequenceRevision=-1;onlineReviewCursor=null;clearResultOverlay();
     }
-    if (previous && next.game.revision > previous.game.revision) {
-      if((previous.rematch?.generation??0)!==(next.rematch?.generation??0)){moveMarkers.clear();lastPlaced=-1;six=[];defeatSequenceRevision=-1;onlineReviewCursor=null;clearResultOverlay()}
-      moveMarkers.set(previous.game.board.filter(Boolean).length, lastPlaced);
-      const diff = compareBoards(previous.game.board, next.game.board);
-      if (diff.placed.length === 1) lastPlaced = diff.placed[0];
-      else if (diff.placed.length > 1) lastPlaced = -1;
-      if (diff.removed.length)
-        lastPlaced =
-          moveMarkers.get(next.game.board.filter(Boolean).length) ?? -1;
-      moveMarkers.set(next.game.board.filter(Boolean).length, lastPlaced);
-    }
-    sessionStorage.setItem(
-      `reversix-marker-${code}`,
-      JSON.stringify({ revision: next.game.revision, index: lastPlaced }),
-    );
     const events = roomEvents(previous, next);
     audio.playChange(moveTransition(previous, next));
     if (
@@ -148,7 +121,7 @@ function render(change?: BoardChange) {
       leaveLocal,
       {
         change,
-        lastPlaced: reviewed?reviewed.lastPlaced:localGame.lastPlaced,
+        turnPlacements: reviewed?reviewed.turnPlacements:localGame.turnPlacements,
         six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === localGame.game.revision,
         canUndo: localGame.game.winner?canReviewBack(true,localReviewCursor,localGame.moveLog):localGame.canUndo(Date.now()),
@@ -193,7 +166,7 @@ function render(change?: BoardChange) {
       leave,
       {
         change,
-        lastPlaced:reviewed?reviewed.lastPlaced:lastPlaced,
+        turnPlacements:reviewed?reviewed.turnPlacements:currentPlacementMarkers(room.moveLog!),
         six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
         canUndo:room.game.winner?canReviewBack(true,onlineReviewCursor,room.moveLog!):room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
@@ -245,7 +218,6 @@ function startLocalGame(settings: GameSettings) {
   cancelComputerWork();computerMode=null;
   localGame = new LocalGameSession(settings);
   localReviewCursor=null;clearResultOverlay();
-  lastPlaced = -1;
   six = [];
   defeatSequenceRevision = -1;
   error = "";
@@ -328,7 +300,6 @@ function leaveLocal() {
   localLocked = false;
   localGame = null;
   six = [];
-  lastPlaced = -1;
   defeatSequenceRevision = -1;
   toast.clear();
   error = "";
@@ -366,14 +337,12 @@ async function action(fn: () => Promise<unknown>, activity?: LobbyActivity) {
   }
 }
 function leave() {
-  moveMarkers.clear();
   presenter.reset();
   toast.clear();
   presenceEvents.reset();
   six = [];
   defeatSequenceRevision = -1;
   onlineReviewCursor=null;clearResultOverlay();
-  lastPlaced = -1;
   subscriptionGeneration++;
   stopOffset?.(); stopOffset=undefined;
   stop?.();

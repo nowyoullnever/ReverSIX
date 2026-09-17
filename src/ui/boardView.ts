@@ -6,7 +6,7 @@ import { randomBoardColors } from "./boardColors";
 const revisions = new WeakMap<HTMLElement, number>();
 export interface BoardPresentation {
   change?: BoardChange;
-  lastPlaced?: number;
+  turnPlacements?: number[];
   six?: number[];
   defeatLines?: number[][];
   defeatPlayer?: Player;
@@ -103,11 +103,10 @@ export function updateBoard(
           stone.classList.add("stone-flip");
         }
       }
-      cell.classList.toggle("first", i === state.firstPlacedStone);
     }
     cell.classList.toggle(
-      "last-placed",
-      i === presentation.lastPlaced && Boolean(color),
+      "turn-placed",
+      presentation.turnPlacements?.includes(i) && Boolean(color),
     );
     cell.classList.toggle(
       "six-highlight",
