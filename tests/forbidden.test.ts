@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { emptyBoard } from "../src/game/board";
-import { createGame, playMove, settlePasses } from "../src/game/gameState";
-import { getMoveOptions } from "../src/game/rules";
+import { commitTurn, createGame, placeStone, playMove, settlePasses } from "../src/game/gameState";
+import { getMoveOptions, getTurnOptions, mustPass, turnComplete } from "../src/game/rules";
 import { applyMove, getLegalMoves } from "../src/game/reversi";
 import { getSixLines } from "../src/game/six";
 import type { GameState } from "../src/game/types";
@@ -31,6 +31,7 @@ it("forbids a second placement that leaves a new opponent Exact SIX", () => {
   const s = opponentSixFixture();
   s.moveNumberInTurn = 2;
   s.firstPlacedStone = 99;
+  s.turnPlacements = [99];
   expect(getMoveOptions(s).forbidden).toContain(50);
   expect(() => playMove(s, "black", 50)).toThrow("FORBIDDEN MOVE");
 });
@@ -41,7 +42,7 @@ it("applies the final-board rule to Black's one-placement opening turn", () => {
   expect(getMoveOptions(s).forbidden).toContain(50);
 });
 
-it("excludes a first placement when every possible turn completion is forbidden", () => {
+it("leaves a first placement open even when no completion of it is legal", () => {
   const s = state();
   s.board.fill("black");
   fill(s.board, [40, 41, 42, 43, 44, 45, 46, 32, 23, 14, 5]);
@@ -50,11 +51,16 @@ it("excludes a first placement when every possible turn completion is forbidden"
   s.board[50] = "";
   captureTurnStart(s);
   expect(getLegalMoves(s.board, "black")).toEqual([0, 50]);
-  expect(getMoveOptions(s)).toEqual({ legal: [], forbidden: [0, 50] });
-  const afterFirst = applyMove(s.board, "black", 0);
-  const secondState = { ...s, board: afterFirst, moveNumberInTurn: 2 as const, firstPlacedStone: 0 };
-  expect(getLegalMoves(afterFirst, "black")).toEqual([50]);
-  expect(getMoveOptions(secondState)).toEqual({ legal: [], forbidden: [50] });
+  // the ban judges a whole turn, so a first stone is never marked forbidden: the player
+  // may play it and watch every follow-up light up as forbidden
+  expect(getMoveOptions(s)).toEqual({ legal: [0, 50], forbidden: [] });
+  expect(getTurnOptions(s)).toEqual({ legal: [], forbidden: [0, 50] });
+  const afterFirst = placeStone(s, "black", 0);
+  expect(getLegalMoves(afterFirst.board, "black")).toEqual([50]);
+  expect(getMoveOptions(afterFirst)).toEqual({ legal: [], forbidden: [50] });
+  // and such a turn cannot be handed over: it has to be taken back
+  expect(turnComplete(afterFirst)).toBe(false);
+  expect(() => commitTurn(afterFirst)).toThrow("INCOMPLETE TURN");
 });
 
 it("passes when raw first placements exist but none can complete a legal turn", () => {
@@ -64,7 +70,10 @@ it("passes when raw first placements exist but none can complete a legal turn", 
   s.board[50] = "";
   captureTurnStart(s);
   expect(getLegalMoves(s.board, "black")).toEqual([50]);
-  expect(getMoveOptions(s)).toEqual({ legal: [], forbidden: [50] });
+  expect(getMoveOptions(s).legal).toEqual([50]);
+  expect(mustPass(s)).toBe(true);
+  expect(turnComplete(s)).toBe(true);
+  expect(commitTurn(s).events).toContain("BLACK PASS");
   expect(settlePasses(s).events).toContain("BLACK PASS");
 });
 
@@ -76,6 +85,7 @@ it("allows an Exact SIX that existed at turn start to reappear at turn end", () 
   s.board[30] = "black";
   s.moveNumberInTurn = 2;
   s.firstPlacedStone = 99;
+  s.turnPlacements = [99];
   expect(getMoveOptions(s).legal).toContain(50);
   const result = playMove(s, "black", 50);
   expect(getSixLines(result.board, "white")).toEqual([[41, 42, 43, 44, 45, 46]]);
@@ -91,6 +101,7 @@ it("still forbids a new SIX B when baseline SIX A exists", () => {
   s.board[30] = "black";
   s.moveNumberInTurn = 2;
   s.firstPlacedStone = 99;
+  s.turnPlacements = [99];
   expect(getMoveOptions(s).forbidden).toContain(50);
 });
 

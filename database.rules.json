@@ -78,7 +78,15 @@
         },
         "moveLog": {
           "$index": {
-            ".validate": "$index.matches(/^(0|[1-9][0-9]*)$/) && newData.hasChildren(['index','player','elapsedMs']) && newData.child('index').isNumber() && newData.child('index').val() >= 0 && newData.child('index').val() < 100 && (newData.child('player').val() === 'black' || newData.child('player').val() === 'white') && newData.child('elapsedMs').isNumber() && newData.child('elapsedMs').val() >= 0"
+            ".validate": "$index.matches(/^(0|[1-9][0-9]*)$/) && newData.hasChildren(['player','elapsedMs']) && (newData.child('player').val() === 'black' || newData.child('player').val() === 'white') && newData.child('elapsedMs').isNumber() && newData.child('elapsedMs').val() >= 0",
+            "cells": {
+              "$cell": {
+                ".validate": "$cell.matches(/^[01]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() < 100"
+              }
+            },
+            "$other": {
+              ".validate": "$other === 'player' || $other === 'elapsedMs'"
+            }
           }
         },
         "rematch": {
@@ -131,6 +139,11 @@
           },
           "consecutivePasses": {
             ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "turnPlacements": {
+            "$index": {
+              ".validate": "$index.matches(/^[01]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() < 100"
+            }
           },
           "events": {
             "$index": {

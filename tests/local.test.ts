@@ -21,47 +21,72 @@ beforeEach(() => {
 });
 afterEach(() => document.body.replaceChildren());
 
-it("uses the shared engine for the opening and two-move turn sequence", () => {
+it("waits for its player to confirm the opening turn and each two-stone turn", () => {
   const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   expect(local.game.board.filter(Boolean)).toHaveLength(4);
   expect(local.game.currentPlayer).toBe("black");
-  expect(local.game.moveNumberInTurn).toBe(1);
+  expect(local.canCommit).toBe(false);
   local.play(34);
+  expect(local.game.currentPlayer).toBe("black");
+  expect(local.game.turnPlacements).toEqual([34]);
+  expect(local.canCommit).toBe(true);
+  local.commit();
   expect(local.game.currentPlayer).toBe("white");
   expect(local.game.turn).toBe(1);
   expect(local.game.moveNumberInTurn).toBe(1);
   local.play(getMoveOptions(local.game).legal[0]);
   expect(local.game.currentPlayer).toBe("white");
   expect(local.game.moveNumberInTurn).toBe(2);
+  expect(local.canCommit).toBe(false);
   local.play(getMoveOptions(local.game).legal[0]);
+  expect(local.canCommit).toBe(true);
+  expect(local.game.currentPlayer).toBe("white");
+  local.commit();
   expect(local.game.currentPlayer).toBe("black");
   expect(local.game.moveNumberInTurn).toBe(1);
+});
+
+it("takes back the newest stone of the turn in hand, newest first", () => {
+  const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
+  local.play(34);
+  local.commit();
+  const first=getMoveOptions(local.game).legal[0];
+  local.play(first);
+  const second=getMoveOptions(local.game).legal[0];
+  local.play(second);
+  expect(local.game.turnPlacements).toEqual([first,second]);
+  local.undo();
+  expect(local.game.turnPlacements).toEqual([first]);
+  expect(local.game.board[second]).toBe("");
+  local.undo();
+  expect(local.game.turnPlacements).toEqual([]);
+  expect(local.game.board).toEqual(local.game.turnStartBoard);
+  expect(local.turnLog).toHaveLength(1);
 });
 
 it("shows only the most recent completed turn placements and restores them on undo", () => {
   const local = new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
   local.play(34);
-  const opening=local.moveLog[0].index;
-  expect(local.turnPlacements).toEqual([opening]);
-  local.play(getMoveOptions(local.game).legal[0]);
-  const whiteFirst=local.moveLog.at(-1)!.index;
-  expect(local.turnPlacements).toEqual([opening]);
-  local.play(getMoveOptions(local.game).legal[0]);
-  const whiteSecond=local.moveLog.at(-1)!.index;
+  local.commit();
+  expect(local.turnPlacements).toEqual([34]);
+  const whiteFirst=getMoveOptions(local.game).legal[0];
+  local.play(whiteFirst);
+  expect(local.turnPlacements).toEqual([34]);
+  const whiteSecond=getMoveOptions(local.game).legal[0];
+  local.play(whiteSecond);
+  local.commit();
   expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
   expect(local.game.currentPlayer).toBe("black");
-  local.play(getMoveOptions(local.game).legal[0]);
-  const blackFirst=local.moveLog.at(-1)!.index;
-  expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
-  local.play(getMoveOptions(local.game).legal[0]);
-  const blackSecond=local.moveLog.at(-1)!.index;
+  const blackFirst=getMoveOptions(local.game).legal[0];
+  local.play(blackFirst);
+  const blackSecond=getMoveOptions(local.game).legal[0];
+  local.play(blackSecond);
+  local.commit();
   expect(local.turnPlacements).toEqual([blackFirst,blackSecond]);
   local.undo();
   expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
   local.undo();
-  expect(local.turnPlacements).toEqual([whiteFirst,whiteSecond]);
-  local.undo();
-  expect(local.turnPlacements).toEqual([opening]);
+  expect(local.turnPlacements).toEqual([34]);
 });
 
 it("uses the shared EXACT SIX engine in a local session", () => {
@@ -75,7 +100,9 @@ it("uses the shared EXACT SIX engine in a local session", () => {
   local.game = { ...createGame(), board, turnStartBoard: [...board], turn: 1 };
   local.play(45);
   expect(local.game.moveNumberInTurn).toBe(2);
+  expect(local.game.checkBy).toBe("");
   local.play(2);
+  local.commit();
   expect(local.game.checkBy).toBe("black");
   expect(local.game.currentPlayer).toBe("white");
 });
@@ -289,3 +316,47 @@ it("hides both clocks and removes the settings summary when time is disabled",()
 it("reopens game options with the current values selected",()=>{const submit=vi.fn();const settings={initialTimeMs:600000,clockEnabled:false,undoMode:"turn" as const,checkRingEnabled:false};const dialog=openGameSettingsDialog("computer",settings,"white",submit,undefined,"easy");expect(dialog.querySelector<HTMLInputElement>('input[name="humanSide"]:checked')?.value).toBe("white");expect(dialog.querySelector<HTMLInputElement>('input[name="computerDifficulty"]:checked')?.value).toBe("easy");expect([...dialog.querySelectorAll<HTMLInputElement>('input[name="computerDifficulty"]')].map(input=>input.value)).toEqual(["easy","normal","hard"]);expect(dialog.querySelector<HTMLInputElement>('input[name="clockEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="undoMode"]:checked')?.value).toBe("turn");expect(dialog.querySelector<HTMLInputElement>('input[name="checkRingEnabled"]:checked')?.value).toBe("off");expect(dialog.querySelector<HTMLInputElement>('input[name="minutes"]')?.value).toBe("10.0");expect(dialog.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe("START GAME")});
 
 it("submits the CHECK RING game option independently of time and undo",()=>{const local=vi.fn();const dialog=openNewGameDialog(true,false,{local,computer:vi.fn(),create:vi.fn(),join:vi.fn()});dialog.querySelector<HTMLButtonElement>(".new-game-local")!.click();const off=dialog.querySelector<HTMLInputElement>('input[name="checkRingEnabled"][value="off"]')!;off.checked=true;dialog.querySelector<HTMLFormElement>("form")!.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));expect(local).toHaveBeenCalledWith({...DEFAULT_SETTINGS,checkRingEnabled:false})});
+
+it("enables CONFIRM TURN only once the turn is playable, and passes when it is not",()=>{
+  const root=document.createElement("main");
+  const commit=vi.fn();
+  const base={canUndo:false,undo:vi.fn(),commit,settings:DEFAULT_SETTINGS,now:0,countdownEndsAt:0,
+    clock:{blackRemainingMs:1000,whiteRemainingMs:1000,activeSince:0,running:false}};
+  localGameView(root,createGame(),false,vi.fn(),vi.fn(),{...base,canCommit:false});
+  const button=()=>root.querySelector<HTMLButtonElement>(".commit")!;
+  expect(button().hidden).toBe(false);
+  expect(button().textContent).toBe("CONFIRM TURN");
+  expect(button().disabled).toBe(true);
+  button().click();
+  expect(commit).not.toHaveBeenCalled();
+
+  localGameView(root,createGame(),false,vi.fn(),vi.fn(),{...base,canCommit:true});
+  expect(button().disabled).toBe(false);
+  button().click();
+  expect(commit).toHaveBeenCalledOnce();
+
+  localGameView(root,createGame(),false,vi.fn(),vi.fn(),{...base,canCommit:true,passing:true});
+  expect(button().textContent).toBe("PASS TURN");
+  expect(root.querySelector(".notice")?.textContent).toBe("NO LEGAL MOVE — PASS THE TURN");
+
+  const finished={...createGame(),winner:"black" as const};
+  localGameView(root,finished,false,vi.fn(),vi.fn(),{...base,canCommit:false});
+  expect(button().hidden).toBe(true);
+});
+
+it("reports the flips a take-back reverses, and reports none for a whole-turn rewind",()=>{
+  const local=new LocalGameSession({...DEFAULT_SETTINGS,clockEnabled:false},0);
+  local.play(34);
+  local.commit();
+  const first=getMoveOptions(local.game).legal[0];
+  const flipped=local.play(first).change.flipped;
+  expect(flipped.length).toBeGreaterThan(0);
+  const takeBack=local.undo();
+  expect(takeBack.tookBackStone).toBe(true);
+  expect(takeBack.change.removed).toEqual([first]);
+  expect(takeBack.change.flipped).toEqual(flipped);
+  expect(takeBack.change.placed).toEqual([]);
+  const rewind=local.undo();
+  expect(rewind.tookBackStone).toBe(false);
+  expect(rewind.change.removed).toEqual([34]);
+});

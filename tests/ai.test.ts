@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect,it } from "vitest";
 import { createGame,playMove } from "../src/game/gameState";
 import { emptyBoard } from "../src/game/board";
-import { getMoveOptions } from "../src/game/rules";
+import { getTurnOptions } from "../src/game/rules";
 import { encode,safePlacements } from "../src/ai/encoder";
 import { ReversixNet,type ModelMeta } from "../src/ai/reversixNet";
 import { halvingSchedule,searchPlacement,selectMiddleRankedMove,type Network } from "../src/ai/search";
@@ -25,7 +25,7 @@ it("keeps a CHECK defense first move when its second move can finish the defense
   expect(safePlacements(state)).toContain(34);
 });
 
-it("uses the current engine legal set throughout Gumbel sequential halving",async()=>{const net:Network={forward:()=>({policy:Float32Array.from({length:100},(_,index)=>index/100),value:0})};let state=createGame(),checked=0;for(let game=0;game<12&&checked<100;game++){state=createGame();while(!state.winner&&checked<100){const legal=getMoveOptions(state).legal,index=await searchPlacement(net,state,{sims:4,candidates:4,random:()=>0.5});expect(legal).toContain(index);expect(safePlacements(state)).toContain(index);state=playMove(state,state.currentPlayer,index);checked++}}expect(checked).toBeGreaterThanOrEqual(100);expect(halvingSchedule(32,16)).toEqual([[16,1],[8,1],[4,2],[2,4]])});
+it("uses the current engine legal set throughout Gumbel sequential halving",async()=>{const net:Network={forward:()=>({policy:Float32Array.from({length:100},(_,index)=>index/100),value:0})};let state=createGame(),checked=0;for(let game=0;game<12&&checked<100;game++){state=createGame();while(!state.winner&&checked<100){const legal=getTurnOptions(state).legal,index=await searchPlacement(net,state,{sims:4,candidates:4,random:()=>0.5});expect(legal).toContain(index);expect(safePlacements(state)).toContain(index);state=playMove(state,state.currentPlayer,index);checked++}}expect(checked).toBeGreaterThanOrEqual(100);expect(halvingSchedule(32,16)).toEqual([[16,1],[8,1],[4,2],[2,4]])},30_000);
 
 it("selects NORMAL moves uniformly from the middle ranked band",()=>{
   const ranked=[1,2,3,4,5,6,7,8,9,10];

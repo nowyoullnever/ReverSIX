@@ -1,16 +1,16 @@
 import { playMove } from "../game/gameState";
-import { getMoveOptions } from "../game/rules";
+import { getTurnOptions } from "../game/rules";
 import { getSixLines } from "../game/six";
 import { other,type GameState } from "../game/types";
 
 export function safePlacements(state:GameState,safe=true):number[]{
-  const legal=getMoveOptions(state).legal,player=state.currentPlayer,opponent=other(player);
+  const legal=getTurnOptions(state).legal,player=state.currentPlayer,opponent=other(player);
   const mustDefend=safe&&state.checkBy===opponent;
   if(!mustDefend)return legal;
   const result=legal.filter(index=>{
     const first=playMove(state,player,index);
     if(first.currentPlayer!==player||first.winner)return first.winner!==opponent;
-    return getMoveOptions(first).legal.some(second=>playMove(first,player,second).winner!==opponent);
+    return getTurnOptions(first).legal.some(second=>playMove(first,player,second).winner!==opponent);
   });
   return result.length?result:safePlacements(state,false);
 }

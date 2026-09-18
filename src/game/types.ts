@@ -8,6 +8,8 @@ export interface GameState {
   turn: number;
   moveNumberInTurn: 1 | 2;
   firstPlacedStone: number;
+  /** Stones placed so far this turn, in order. They are provisional until the turn is committed. */
+  turnPlacements: number[];
   checkBy: Player | "";
   winner: Player | "draw" | "";
   consecutivePasses: number;

@@ -6,7 +6,10 @@ import { randomBoardColors } from "./boardColors";
 const revisions = new WeakMap<HTMLElement, number>();
 export interface BoardPresentation {
   change?: BoardChange;
+  /** Placements of the last turn that was handed over, marked for both players. */
   turnPlacements?: number[];
+  /** Takes back the newest stone of the turn in progress, when its player clicks it. */
+  undoPlacement?: () => void;
   six?: number[];
   defeatLines?: number[][];
   defeatPlayer?: Player;
@@ -59,6 +62,11 @@ export function updateBoard(
 ) {
   const changed = revisions.get(board) !== state.revision;
   const { legal, forbidden } = getMoveOptions(state);
+  // Only the newest stone of the turn in progress comes back off the board, so a turn
+  // unwinds in the order it was built.
+  const undoable = presentation.undoPlacement && enabled ? state.turnPlacements.at(-1) ?? -1 : -1;
+  // A take-back has no stone landing for the flips to wait on, so they start at once.
+  const takingBack = Boolean(presentation.change?.removed.length) && !presentation.change?.placed.length;
   const cells = board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
   drawDefeatLines(board, presentation.defeatLines, presentation.defeatPlayer);
   board.classList.toggle("defeat-sequence", Boolean(presentation.defeatSequence));
@@ -66,13 +74,16 @@ export function updateBoard(
     const cell = cells[i];
     applyBoardColor(cell, i);
     const color = state.board[i];
-    cell.disabled = !enabled || !legal.includes(i);
+    const takesBack = i === undoable;
+    cell.disabled = takesBack ? false : !enabled || !legal.includes(i);
     cell.onclick = () => {
-      if (!cell.disabled) move(i);
+      if (cell.disabled) return;
+      if (takesBack) presentation.undoPlacement!();
+      else move(i);
     };
     if (changed) {
       const boardColor = (Math.floor(i / 10) + (i % 10)) % 2 ? "board-color-b" : "board-color-a";
-      cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""} ${!color && forbidden.includes(i) ? "forbidden" : ""}`;
+      cell.className = `cell ${boardColor} ${color} ${!color && legal.includes(i) ? "legal" : ""} ${!color && forbidden.includes(i) ? "forbidden" : ""} ${takesBack ? "undoable" : ""}`;
       cell.replaceChildren();
       if (!color && forbidden.includes(i)) {
         const mark=document.createElement("span");
@@ -83,7 +94,7 @@ export function updateBoard(
       }
       cell.setAttribute(
         "aria-label",
-        t("board.cell", { row: Math.floor(i / 10) + 1, column: String.fromCharCode(65 + i % 10), state: color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),
+        t("board.cell", { row: Math.floor(i / 10) + 1, column: String.fromCharCode(65 + i % 10), state: takesBack ? t("board.undoable") : color ? t(`game.${color}`) : forbidden.includes(i) ? t("board.forbidden") : legal.includes(i) ? t("board.legal") : t("board.empty") }),
       );
       if (color) {
         const stone = document.createElement("span");
@@ -101,12 +112,16 @@ export function updateBoard(
             color === "black" ? "#000" : "#fff",
           );
           stone.classList.add("stone-flip");
+          if (takingBack) stone.classList.add("stone-flip-back");
         }
       }
     }
     cell.classList.toggle(
       "turn-placed",
-      presentation.turnPlacements?.includes(i) && Boolean(color),
+      Boolean(color) &&
+        (state.turnPlacements.includes(i) ||
+          (!state.turnPlacements.length &&
+            Boolean(presentation.turnPlacements?.includes(i)))),
     );
     cell.classList.toggle(
       "six-highlight",

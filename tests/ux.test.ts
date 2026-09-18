@@ -229,7 +229,7 @@ it("renders every tutorial step and controls in Korean", () => {
     expect(dialog.textContent).toContain(`게임 방법 · ${page} / 6`);
   }
   expect(dialog.textContent).toContain("6. SIX 방어하기");
-  expect(dialog.textContent).toContain("둘 수 있는 곳이 없으면 패스합니다.");
+  expect(dialog.textContent).toContain("턴을 마칠 수 없으면 패스합니다.");
   expect(dialog.textContent).toContain("완료");
   expect(dialog.textContent).not.toContain("CLOSE");
   dialog.remove();

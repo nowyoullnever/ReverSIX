@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { emptyBoard, initialBoard } from "../src/game/board";
 import { applyMove, getFlips, getLegalMoves } from "../src/game/reversi";
 import { getSixLines } from "../src/game/six";
-import { getMoveOptions } from "../src/game/rules";
-import { createGame, playMove, settlePasses } from "../src/game/gameState";
+import { getMoveOptions, mustPass, turnComplete } from "../src/game/rules";
+import { commitTurn, createGame, placeStone, playMove, settlePasses, undoLastPlacement } from "../src/game/gameState";
 import type { Board, GameState } from "../src/game/types";
 function state(board: Board, extra: Partial<GameState> = {}): GameState {
   return { ...createGame(), board, turnStartBoard: [...board], turn: 1, ...extra };
@@ -124,6 +124,7 @@ describe("Double-Six", () => {
     const middle = state(applyMove(b, "black", start), {
       moveNumberInTurn: 2,
       firstPlacedStone: start,
+      turnPlacements: [start],
     });
     expect(getMoveOptions(middle).legal).toContain(start + 5 * step);
     expect(first.board[start]).toBe("black");
@@ -132,7 +133,7 @@ describe("Double-Six", () => {
     const b = emptyBoard();
     fill(b, [40, 41, 44, 45]);
     b[43] = "white";
-    const s = state(b, { moveNumberInTurn: 2, firstPlacedStone: 40 });
+    const s = state(b, { moveNumberInTurn: 2, firstPlacedStone: 40, turnPlacements: [40] });
     expect(getMoveOptions(s).legal).toContain(42);
   });
   it("allows two stones in one maximal seven-stone run", () => {
@@ -141,7 +142,7 @@ describe("Double-Six", () => {
     b[56] = "white";
     b[66] = "black";
     expect(
-      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 40 }))
+      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 40, turnPlacements: [40] }))
         .legal,
     ).toContain(46);
   });
@@ -151,7 +152,7 @@ describe("Double-Six", () => {
     b[52] = "white";
     b[62] = "black";
     expect(
-      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 40 }))
+      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 40, turnPlacements: [40] }))
         .legal,
     ).toContain(42);
   });
@@ -161,7 +162,7 @@ describe("Double-Six", () => {
     b[55] = "white";
     b[65] = "black";
     expect(
-      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 11 }))
+      getMoveOptions(state(b, { moveNumberInTurn: 2, firstPlacedStone: 11, turnPlacements: [11] }))
         .legal,
     ).toContain(45);
   });
@@ -216,7 +217,7 @@ describe("EXACT SIX and CHECK", () => {
     fill(b, [42, 43, 44, 45], "white");
     expect(getSixLines(applyMove(b, "black", 46), "black")).toEqual([]);
     const end = playMove(
-      state(b, { moveNumberInTurn: 2, firstPlacedStone: 99 }),
+      state(b, { moveNumberInTurn: 2, firstPlacedStone: 99, turnPlacements: [99] }),
       "black",
       46,
     );
@@ -266,24 +267,24 @@ describe("EXACT SIX and CHECK", () => {
     expect(getSixLines(b, "black")).toEqual([[40, 41, 42, 43, 44, 45]]);
   });
   it("fails when an opposing SIX remains at the end", () => {
-    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
+    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99, turnPlacements: [99] });
     expect(playMove(s, "white", 2).winner).toBe("black");
   });
   it("loses after breaking only one of multiple SIX lines", () => {
-    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
+    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99, turnPlacements: [99] });
     fill(s.board, [70, 71, 72, 73, 74, 75]);
     s.turnStartBoard = [...s.board];
     expect(playMove(s, "white", 34).winner).toBe("black");
   });
   it("counter-checks after successful defense", () => {
-    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
+    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99, turnPlacements: [99] });
     fill(s.board, [30, 31, 32, 33, 35], "white");
     const end = playMove(s, "white", 34);
     expect(end.checkBy).toBe("white");
     expect(end.winner).not.toBe("black");
   });
   it("CHECK defense failure takes priority over a defenders own SIX", () => {
-    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99 });
+    const s = defense({ moveNumberInTurn: 2, firstPlacedStone: 99, turnPlacements: [99] });
     fill(s.board, [70, 71, 72, 73, 74, 75], "white");
     s.turnStartBoard = [...s.board];
     expect(playMove(s, "white", 2).winner).toBe("black");
@@ -342,5 +343,85 @@ describe("automatic pass and skips", () => {
     const end = settlePasses(state(b));
     expect(end.winner).toBe(winner);
     expect(end.consecutivePasses).toBe(2);
+  });
+});
+
+describe("the turn in hand", () => {
+  it("keeps the turn with its player until they confirm it", () => {
+    const opening = createGame();
+    const placed = placeStone(opening, "black", 34);
+    expect(placed.currentPlayer).toBe("black");
+    expect(placed.turnPlacements).toEqual([34]);
+    expect(placed.board[34]).toBe("black");
+    expect(turnComplete(placed)).toBe(true);
+    const handed = commitTurn(placed);
+    expect(handed.currentPlayer).toBe("white");
+    expect(handed.turn).toBe(1);
+    expect(handed.turnPlacements).toEqual([]);
+    expect(handed.turnStartBoard).toEqual(handed.board);
+  });
+  it("refuses a third stone and refuses to hand over a half-played turn", () => {
+    const b = emptyBoard();
+    fill(b, [21, 22, 23, 24]);
+    b[30] = b[35] = "white";
+    b[40] = b[45] = b[46] = "black";
+    const first = placeStone(state(b), "black", 20);
+    expect(turnComplete(first)).toBe(false);
+    expect(() => commitTurn(first)).toThrow("INCOMPLETE TURN");
+    const second = placeStone(first, "black", getMoveOptions(first).legal[0]);
+    expect(second.turnPlacements).toHaveLength(2);
+    expect(() =>
+      placeStone(second, "black", getLegalMoves(second.board, "black")[0]),
+    ).toThrow("TURN IS ALREADY COMPLETE");
+    expect(getMoveOptions(second)).toEqual({ legal: [], forbidden: [] });
+  });
+  it("restores the board exactly when a stone is taken back", () => {
+    const b = emptyBoard();
+    fill(b, [21, 22, 23, 24]);
+    b[30] = b[35] = "white";
+    b[40] = b[45] = b[46] = "black";
+    const start = state(b);
+    const first = placeStone(start, "black", 20);
+    const second = placeStone(first, "black", getMoveOptions(first).legal[0]);
+    expect(undoLastPlacement(second).board).toEqual(first.board);
+    expect(undoLastPlacement(second).turnPlacements).toEqual([20]);
+    const empty = undoLastPlacement(undoLastPlacement(second));
+    expect(empty.board).toEqual(start.board);
+    expect(empty.turnPlacements).toEqual([]);
+    expect(empty.moveNumberInTurn).toBe(1);
+    expect(() => undoLastPlacement(empty)).toThrow("UNDO IS NOT AVAILABLE");
+  });
+  it("confirms a one-stone turn when the second stone has nothing legal left", () => {
+    const b = emptyBoard();
+    b[40] = "black";
+    b[41] = "white";
+    const first = placeStone(state(b), "black", 42);
+    expect(getLegalMoves(first.board, "black")).toEqual([]);
+    expect(first.events).toContain("BLACK SECOND MOVE SKIPPED");
+    expect(turnComplete(first)).toBe(true);
+    expect(commitTurn(first).currentPlayer).toBe("white");
+  });
+  it("passes only when no legal turn exists, and a pass in CHECK loses", () => {
+    const playable = createGame();
+    expect(mustPass(playable)).toBe(false);
+    expect(() => commitTurn(playable)).toThrow("INCOMPLETE TURN");
+    const b = emptyBoard();
+    fill(b, [40, 41, 42, 43, 44, 45]);
+    const checked = state(b, { currentPlayer: "white", checkBy: "black" });
+    expect(mustPass(checked)).toBe(true);
+    const passed = commitTurn(checked);
+    expect(passed.events).toContain("WHITE PASS");
+    expect(passed.winner).toBe("black");
+  });
+  it("ends on stone count after both sides pass", () => {
+    const b = emptyBoard();
+    fill(b, [0, 1, 2]);
+    b[90] = b[91] = "white";
+    const first = commitTurn(state(b));
+    expect(first.winner).toBe("");
+    expect(first.consecutivePasses).toBe(1);
+    const second = commitTurn(first);
+    expect(second.consecutivePasses).toBe(2);
+    expect(second.winner).toBe("black");
   });
 });

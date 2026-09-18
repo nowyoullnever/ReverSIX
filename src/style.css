@@ -356,6 +356,8 @@ input {
 .stone-flip {
   animation: stone-flip 320ms ease-in-out 120ms both;
 }
+/* Nothing is landing on a take-back, so the stones turn back over immediately. */
+.stone-flip-back { animation-delay: 0ms; }
 @keyframes stone-enter {
   from {
     transform: scale(0.65);
@@ -397,6 +399,11 @@ input {
   background:#fff;
 }
 .white.turn-placed .stone::after { background:#000; }
+/* The newest stone of the turn in progress: click it to take it back. */
+.cell.undoable { cursor:pointer; }
+.cell.undoable .stone { outline:2px dashed currentColor; outline-offset:2px; }
+.cell.undoable.black .stone { color:#fff; }
+.cell.undoable.white .stone { color:#000; }
 .six-highlight .stone::before { content:""; position:absolute; inset:-6px; border-radius:50%; pointer-events:none; transform-origin:center; z-index:3; animation:check-six-pulse 1000ms ease-in-out infinite; }
 .black.six-highlight .stone::before { border:3px solid #fff; box-shadow:0 0 0 1px rgb(0 0 0 / .2); }
 .white.six-highlight .stone::before { border:3px solid #000; }
@@ -490,6 +497,8 @@ main[data-check-ring="off"] .six-highlight .stone::before { display:none; }
   55% { opacity: .7; transform: translate(-50%, 0) scale(1.015); }
   100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
+.game-controls .commit { font-weight:700; }
+.game-controls .commit.passing { font-style:italic; }
 .game-controls {
   display: flex;
   justify-content: center;
