@@ -8,6 +8,7 @@ import { emptyBoard } from "../src/game/board";
 import type { Room } from "../src/online/rooms";
 import { formatClock } from "../src/ui/clockView";
 import { DEFAULT_SETTINGS } from "../src/game/session";
+import { compareBoards } from "../src/ui/transitions";
 const cells = (board: HTMLElement) =>
   board.querySelectorAll<HTMLButtonElement>(":scope > .cell");
 it.each([[300000,"05:00:000"],[372481,"06:12:481"],[5027,"00:05:027"],[1,"00:00:001"],[0,"00:00:000"]] as const)("formats %i milliseconds as %s",(ms,formatted)=>{const value=formatClock(ms);expect(value).toBe(formatted);expect(value).not.toContain(".")});
@@ -30,6 +31,7 @@ it("does not mark Reversi-legal cells as forbidden", () => {
   s.turn = 1;
   s.moveNumberInTurn = 2;
   s.firstPlacedStone = 40;
+  s.turnPlacements = [40];
   [40, 41, 44, 45].forEach((i) => (s.board[i] = "black"));
   s.board[43] = "white";
   s.turnStartBoard = [...s.board];
@@ -41,7 +43,7 @@ it("does not mark Reversi-legal cells as forbidden", () => {
   cells(board)[42].click();
   expect(move).toHaveBeenCalledWith(42);
 });
-it("marks turn-ending opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;s.moveNumberInTurn=2;s.firstPlacedStone=99;for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";s.turnStartBoard=[...s.board];const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("🚫");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: leaves a new opponent SIX at turn end");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
+it("marks turn-ending opponent-SIX moves with a disabled accessible symbol",()=>{const s=createGame();s.board=emptyBoard();s.turn=1;s.moveNumberInTurn = 2;s.firstPlacedStone = 99;s.turnPlacements = [99];for(let i=40;i<=46;i++)s.board[i]="white";s.board[30]="black";s.turnStartBoard=[...s.board];const move=vi.fn(),board=boardView(s,true,move);expect(cells(board)[50].textContent).toBe("🚫");expect(cells(board)[50].disabled).toBe(true);expect(cells(board)[50].getAttribute("aria-label")).toContain("Forbidden move: leaves a new opponent SIX at turn end");cells(board)[50].click();expect(move).not.toHaveBeenCalled()});
 it("disables board on opponent turn, waiting, disconnect and pending writes", () => {
   const r: Room = {
     status: "playing",
@@ -290,4 +292,84 @@ it("without Firebase, lobby keeps NEW GAME available", () => {
   expect(root.querySelector(".home-shell > h1")?.textContent).toBe("ReverSix!");
   expect(root.dataset.mode).toBe("lobby");
   expect(root.querySelector(".home-shell > .lobby #new-game")).not.toBeNull();
+});
+
+it("takes back only the newest stone of the turn in hand, by clicking it",()=>{
+  const s=createGame();
+  s.turn=1;s.moveNumberInTurn=2;s.firstPlacedStone=34;s.turnPlacements=[43,34];
+  s.board[34]="black";s.board[43]="black";s.board[44]="black";
+  const move=vi.fn(),undoPlacement=vi.fn();
+  const board=boardView(s,true,move,{undoPlacement});
+  expect(cells(board)[34].disabled).toBe(false);
+  expect(cells(board)[34].className).toContain("undoable");
+  expect(cells(board)[34].getAttribute("aria-label")).toContain("take it back");
+  cells(board)[34].click();
+  expect(undoPlacement).toHaveBeenCalledOnce();
+  expect(move).not.toHaveBeenCalled();
+  // the earlier stone of the same turn stays put until the newest one is gone
+  expect(cells(board)[43].disabled).toBe(true);
+  expect(cells(board)[43].className).not.toContain("undoable");
+  // and marks every stone of the turn in progress, not the previous turn's
+  expect(cells(board)[34].className).toContain("turn-placed");
+  expect(cells(board)[43].className).toContain("turn-placed");
+});
+
+it("leaves the board alone when no take-back is offered",()=>{
+  const s=createGame();
+  s.turn=1;s.moveNumberInTurn=2;s.firstPlacedStone=34;s.turnPlacements=[34];
+  s.board[34]="black";s.board[44]="black";
+  const board=boardView(s,true,vi.fn());
+  expect(cells(board)[34].disabled).toBe(true);
+  expect(board.querySelector(".undoable")).toBeNull();
+});
+
+it("offers CONFIRM TURN to the player whose turn it is, and PASS when they have none",()=>{
+  const room:Room={status:"playing",createdAt:1,players:{black:"a",white:"b"},game:createGame(),
+    settings:DEFAULT_SETTINGS,clock:{blackRemainingMs:1000,whiteRemainingMs:1000,activeSince:0,running:false},
+    moveLog:[],rematch:{black:false,white:false,generation:0},countdownEndsAt:0,
+    timeout:{pendingFor:"",continueWithoutClock:false}};
+  const commit=vi.fn(),root=document.createElement("main");
+  const button=()=>root.querySelector<HTMLButtonElement>(".commit")!;
+  gameView(root,room,"ABC234","black",true,true,false,vi.fn(),vi.fn(),{commit,canCommit:true});
+  expect(button().hidden).toBe(false);
+  expect(button().textContent).toBe("CONFIRM TURN");
+  button().click();
+  expect(commit).toHaveBeenCalledOnce();
+  // the opponent never sees the button, let alone a half-made turn
+  gameView(root,room,"ABC234","white",true,true,false,vi.fn(),vi.fn(),{commit,canCommit:true});
+  expect(button().hidden).toBe(true);
+  gameView(root,room,"ABC234","black",true,true,false,vi.fn(),vi.fn(),{commit,canCommit:true,passing:true});
+  expect(button().textContent).toBe("PASS TURN");
+  expect(root.querySelector(".notice")?.textContent).toBe("NO LEGAL MOVE — PASS THE TURN");
+});
+
+it("turns the flipped stones back over when a stone is taken back",()=>{
+  // black took 44 by playing 34; taking 34 back hands 44 straight back to white
+  const before=createGame();
+  const after={...createGame(),revision:1};
+  before.board[34]="black";before.board[44]="black";before.turnPlacements=[34];
+  before.moveNumberInTurn=2;before.firstPlacedStone=34;
+  const change=compareBoards(before.board,after.board);
+  expect(change).toEqual({placed:[],flipped:[44],removed:[34]});
+  const board=boardView(after,true,vi.fn(),{change});
+  const restored=cells(board)[44].querySelector<HTMLElement>(".stone")!;
+  expect(restored.className).toContain("stone-flip");
+  // no stone is landing, so the turn-back does not wait for one
+  expect(restored.className).toContain("stone-flip-back");
+  expect(restored.style.getPropertyValue("--old-color")).toBe("#000");
+  expect(restored.style.getPropertyValue("--new-color")).toBe("#fff");
+  // the stone that was picked up simply leaves
+  expect(cells(board)[34].querySelector(".stone")).toBeNull();
+});
+
+it("does not use the immediate turn-back when a stone is landing",()=>{
+  const before=createGame();
+  const after={...createGame(),revision:1};
+  after.board[34]="black";after.board[44]="black";
+  const change=compareBoards(before.board,after.board);
+  const board=boardView(after,true,vi.fn(),{change});
+  const flipped=cells(board)[44].querySelector<HTMLElement>(".stone")!;
+  expect(flipped.className).toContain("stone-flip");
+  expect(flipped.className).not.toContain("stone-flip-back");
+  expect(cells(board)[34].querySelector(".stone")!.className).toContain("stone-enter");
 });

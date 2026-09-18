@@ -1,4 +1,4 @@
-import { createGame, playMove } from "./gameState";
+import { commitTurn, createGame, placeStone } from "./gameState";
 import type { GameState, Player } from "./types";
 
 export type UndoMode = "all" | "turn";
@@ -14,8 +14,12 @@ export interface ClockState {
   activeSince: number;
   running: boolean;
 }
-export interface MoveRecord {
-  index: number;
+/**
+ * One committed turn: the cells it placed, in order. A pass places none. Provisional
+ * stones never reach the log — a turn is only recorded once its player confirms it.
+ */
+export interface TurnRecord {
+  cells: number[];
   player: Player;
   elapsedMs: number;
 }
@@ -73,39 +77,31 @@ export function commitElapsed(clock: ClockState, player: Player, now: number) {
   else next.whiteRemainingMs = Math.max(0, clock.whiteRemainingMs - elapsed);
   return { clock: next, elapsedMs: elapsed };
 }
-/** Returns placements from the last turn that actually completed. */
-export function lastCompletedTurnPlacements(records: MoveRecord[]): number[] {
-  let game = createGame();
-  let activeTurnPlacements: number[] = [];
-  let completedTurnPlacements: number[] = [];
-  for (const record of records) {
-    const turnBeforeMove = game.turn;
-    activeTurnPlacements.push(record.index);
-    const next = playMove(game, record.player, record.index);
-    if (next.turn > turnBeforeMove || next.winner) {
-      completedTurnPlacements = activeTurnPlacements;
-      activeTurnPlacements = [];
-    }
-    game = next;
-  }
-  return completedTurnPlacements;
+/** Placements of the last turn that actually completed. */
+export function lastCompletedTurnPlacements(records: TurnRecord[]): number[] {
+  return [...(records.at(-1)?.cells ?? [])];
 }
-export function replayMoves(settings: GameSettings, records: MoveRecord[], revision: number) {
+export function replayTurns(settings: GameSettings, records: TurnRecord[], revision: number) {
   let game = createGame();
   let black = settings.initialTimeMs;
   let white = settings.initialTimeMs;
   for (const record of records) {
     if (game.currentPlayer !== record.player) throw new Error("INVALID MOVE HISTORY");
-    game = playMove(game, record.player, record.index);
+    for (const cell of record.cells) game = placeStone(game, record.player, cell);
+    game = commitTurn(game);
     if (record.player === "black") black -= record.elapsedMs;
     else white -= record.elapsedMs;
   }
   game.revision = revision;
   return { game, blackRemainingMs: Math.max(0, black), whiteRemainingMs: Math.max(0, white) };
 }
-export function mayUndo(game: GameState, records: MoveRecord[], mode: UndoMode) {
-  if (game.winner || !records.length) return false;
-  if (mode === "all") return true;
-  const last = records.at(-1)!;
-  return last.player === game.currentPlayer;
+/**
+ * Whether UNDO does anything. A stone placed but not yet confirmed can always be taken
+ * back — that is the turn in progress, which no opponent has seen. Rolling a committed
+ * turn back off the log is the wider power that "all" grants.
+ */
+export function mayUndo(game: GameState, records: TurnRecord[], mode: UndoMode) {
+  if (game.winner) return false;
+  if (game.turnPlacements.length) return true;
+  return mode === "all" && records.length > 0;
 }

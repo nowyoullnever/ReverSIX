@@ -6,7 +6,7 @@ import {
   createRoom,
   joinRoom,
   requestRematch,
-  submitMove,
+  submitTurn,
   submitTimeout,
   submitTimeoutDecision,
   submitUndo,
@@ -18,6 +18,8 @@ import type { LobbyActivity } from "./ui/lobby";
 import { gameView } from "./ui/gameView";
 import { localGameView } from "./ui/localGameView";
 import { getSixLines } from "./game/six";
+import { placeStone, undoLastPlacement } from "./game/gameState";
+import { turnStatus } from "./game/rules";
 import { Toast } from "./ui/toast";
 import { RoomPresenter, MOVE_ANIMATION_MS } from "./ui/presenter";
 import {
@@ -33,7 +35,7 @@ import { BgmManager } from "./audio/bgm";
 import { getLocale, localizeError, setLocale, t } from "./i18n/i18n";
 import { LocalGameSession } from "./local/localGame";
 import { countdownRenderState, lastCompletedTurnPlacements, mayUndo, remainingAt, type GameSettings } from "./game/session";
-import type { Player } from "./game/types";
+import type { GameState, Player } from "./game/types";
 import { ComputerController } from "./ai/computerController";
 import type { ComputerDifficulty } from "./ai/difficulty";
 import { watchSystemTheme } from "./ui/theme";
@@ -63,6 +65,9 @@ let onlineCountdownActive=false;
 let six: number[] = [];
 let defeatSequenceRevision = -1;
 let localReviewCursor:number|null=null,onlineReviewCursor:number|null=null;
+// The turn an online player is still building. It stays on this screen: nothing reaches
+// the room until they confirm the turn, so the opponent never sees a half-made turn.
+let onlineDraft:GameState|null=null,onlineDraftBase=-1,ownTurnRevision=-1;
 let resultOverlayRevision=-1;
 let resultOverlayTimer:ReturnType<typeof setTimeout>|undefined;
 const RESULT_OVERLAY_MS=2400;
@@ -87,8 +92,12 @@ const presenter = new RoomPresenter(
     if ((previous?.rematch?.generation??0)!==(next.rematch?.generation??0)) {
       six=[];defeatSequenceRevision=-1;onlineReviewCursor=null;clearResultOverlay();
     }
+    if (next.game.revision !== onlineDraftBase) { onlineDraft = null; onlineDraftBase = -1 }
+    // this client already watched its own stones land, so the echo is not replayed
+    const own = next.game.revision === ownTurnRevision;
+    if (own) ownTurnRevision = -1;
     const events = roomEvents(previous, next);
-    audio.playChange(moveTransition(previous, next));
+    if (!own) audio.playChange(moveTransition(previous, next));
     if (
       previous &&
       !previous.game.winner &&
@@ -101,7 +110,7 @@ const presenter = new RoomPresenter(
     six = next.game.checkBy && !next.game.winner
       ? [...new Set(getSixLines(next.game.board, next.game.checkBy).flat())]
       : [];
-    render(change);
+    render(own ? undefined : change);
   },
   () => render(),
 );
@@ -111,7 +120,8 @@ function render(change?: BoardChange) {
     root.innerHTML=`<h1>ReverSix!</h1><p class="local-title">${t("computer.title")}</p><p class="computer-loading" role="status">${t(computerMode.loadFailed?"computer.loadFailed":"computer.loading")}</p><button class="back">${t("game.back")}</button>`;
     root.querySelector<HTMLButtonElement>(".back")!.onclick=leaveLocal;
   } else if (localGame) {
-    const reviewed=localReviewCursor===null?null:replayForReview(localGame.settings,localGame.moveLog,localReviewCursor,localGame.game.revision);
+    const reviewed=localReviewCursor===null?null:replayForReview(localGame.settings,localGame.turnLog,localReviewCursor,localGame.game.revision);
+    const localTurn=localGame.turnStatus;
     const displayGame=reviewed?.game??localGame.game,displayClock=reviewed?.clock??localGame.clock;
     localGameView(
       root,
@@ -124,8 +134,12 @@ function render(change?: BoardChange) {
         turnPlacements: reviewed?reviewed.turnPlacements:localGame.turnPlacements,
         six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === localGame.game.revision,
-        canUndo: localGame.game.winner?canReviewBack(true,localReviewCursor,localGame.moveLog):localGame.canUndo(Date.now()),
+        canUndo: localGame.game.winner?canReviewBack(true,localReviewCursor,localGame.turnLog):localGame.canUndo(Date.now()),
         undo: undoLocal,
+        undoPlacement: undoLocal,
+        commit: commitLocalTurn,
+        canCommit: localReviewCursor===null&&localTurn.canCommit,
+        passing: localReviewCursor===null&&localTurn.mustPass,
         rematch: rematchLocal,
         changeOptions:changeLocalOptions,
         clock: displayClock,
@@ -147,7 +161,8 @@ function render(change?: BoardChange) {
   } else if (room) {
     const player = room.players.black === uid ? "black" : "white";
     const reviewed=onlineReviewCursor===null?null:replayForReview(room.settings!,room.moveLog!,onlineReviewCursor,room.game.revision);
-    const displayRoom=reviewed?{...room,game:reviewed.game,clock:reviewed.clock}:room;
+    const drafted=draftGame(),draftedTurn=turnStatus(drafted);
+    const displayRoom=reviewed?{...room,game:reviewed.game,clock:reviewed.clock}:drafted===room.game?room:{...room,game:drafted};
     gameView(
       root,
       displayRoom,
@@ -158,19 +173,19 @@ function render(change?: BoardChange) {
         room.players[player === "black" ? "white" : "black"] ?? "",
       ),
       busy || presenter.locked,
-      (i) =>
-        void (audio.unlock(), action(async () => {
-          const before = room!.game;
-          await submitMove(code, before.revision, i, serverNow());
-        })),
+      placeOnline,
       leave,
       {
         change,
         turnPlacements:reviewed?reviewed.turnPlacements:lastCompletedTurnPlacements(room.moveLog!),
         six:reviewed?[]:six,
         defeatSequence: defeatSequenceRevision === room.game.revision,
-        canUndo:room.game.winner?canReviewBack(true,onlineReviewCursor,room.moveLog!):room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && mayUndo(room.game, room.moveLog!, room.settings!.undoMode),
+        canUndo:room.game.winner?canReviewBack(true,onlineReviewCursor,room.moveLog!):room.status === "playing" && !room.timeout?.pendingFor && serverNow()>=room.countdownEndsAt! && (drafted.turnPlacements.length>0 || mayUndo(room.game, room.moveLog!, room.settings!.undoMode)),
         undo:undoOnline,
+        undoPlacement:undoOnline,
+        commit:commitOnlineTurn,
+        canCommit:onlineReviewCursor===null&&draftedTurn.canCommit,
+        passing:onlineReviewCursor===null&&draftedTurn.mustPass,
         rematch: () => void action(()=>requestRematch(code,serverNow())),
         changeOptions:changeOnlineOptions,
         timeoutDecision:(continueGame)=>void action(()=>submitTimeoutDecision(code,continueGame)),
@@ -238,18 +253,14 @@ function localMove(index: number) {
   if (!localGame || localLocked || localGame.game.winner || (computerMode&&localGame.game.currentPlayer===computerMode.computerSide)) return;
   performLocalMove(index);
 }
+/** Places one provisional stone. The turn only ends when its player confirms it. */
 function performLocalMove(index:number){
   if(!localGame)return;
   void audio.unlock();
   let result;
   try{result=localGame.play(index)}catch(e){error=(e as Error).message;render();return}
-  const { before, after, change } = result;
+  const { change } = result;
   audio.playChange(change);
-  toast.show(gameEvents(before, after));
-  six = after.checkBy && !after.winner
-    ? [...new Set(getSixLines(after.board, after.checkBy).flat())]
-    : [];
-  if(!before.winner&&after.winner){showResultOverlay(after.revision);if(after.events.includes("CHECK DEFENSE FAILED"))defeatSequenceRevision=after.revision}
   localLocked =
     !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   render(change);
@@ -263,18 +274,35 @@ function performLocalMove(index:number){
     }, MOVE_ANIMATION_MS);
   }else queueComputerMove(500);
 }
+/** Hands the finished turn to the opponent — or passes it, when nothing could be played. */
+function commitLocalTurn(){
+  if(!localGame||localLocked||localGame.game.winner||!localGame.canCommit)return;
+  void audio.unlock();
+  let result;
+  try{result=localGame.commit()}catch(e){error=(e as Error).message;render();return}
+  const { before, after } = result;
+  toast.show(gameEvents(before, after));
+  six = after.checkBy && !after.winner
+    ? [...new Set(getSixLines(after.board, after.checkBy).flat())]
+    : [];
+  if(!before.winner&&after.winner){showResultOverlay(after.revision);if(after.events.includes("CHECK DEFENSE FAILED"))defeatSequenceRevision=after.revision}
+  error="";
+  render();
+  queueComputerMove(500);
+}
 function undoLocal() {
   if(!localGame||localLocked)return;
-  if(localGame.game.winner){const cursor=localReviewCursor??localGame.moveLog.length;if(cursor<=0)return;cancelComputerWork(false);clearResultOverlay();localReviewCursor=cursor-1;render();return}
+  if(localGame.game.winner){const cursor=localReviewCursor??localGame.turnLog.length;if(cursor<=0)return;cancelComputerWork(false);clearResultOverlay();localReviewCursor=cursor-1;render();return}
   if(!localGame.canUndo())return;
   cancelComputerWork(false);
-  localGame.undo();
+  const undone = localGame.undo();
   six = localGame.game.checkBy && !localGame.game.winner
     ? [...new Set(getSixLines(localGame.game.board, localGame.game.checkBy).flat())]
     : [];
   defeatSequenceRevision = -1;
   toast.clear();
-  render();
+  // the stones this stone had flipped turn back over; a whole-turn rewind just snaps
+  render(undone.tookBackStone ? undone.change : undefined);
   queueComputerMove(500);
 }
 function changeLocalOptions(){
@@ -285,9 +313,40 @@ function changeLocalOptions(){
     render();queueComputerMove();
   },undefined,computerMode?.difficulty);
 }
+/** The position this player sees: the room's, plus whatever they have placed so far. */
+function draftGame(){return onlineDraft&&onlineDraftBase===room!.game.revision?onlineDraft:room!.game}
+function placeOnline(index:number){
+  if(!room||busy||presenter.locked||onlineReviewCursor!==null)return;
+  void audio.unlock();
+  const player:Player=room.players.black===uid?"black":"white";
+  const before=draftGame();
+  let after;
+  try{after=placeStone(before,player,index)}catch(e){error=(e as Error).message;render();return}
+  onlineDraft=after;onlineDraftBase=room.game.revision;error="";
+  const change=compareBoards(before.board,after.board);
+  audio.playChange(change);
+  render(change);
+}
+function commitOnlineTurn(){
+  if(!room||onlineReviewCursor!==null)return;
+  const drafted=draftGame();
+  if(!turnStatus(drafted).canCommit)return;
+  const cells=[...drafted.turnPlacements],revision=room.game.revision;
+  void action(async()=>{
+    ownTurnRevision=revision+1;
+    try{await submitTurn(code,revision,cells,serverNow())}
+    catch(e){ownTurnRevision=-1;throw e}
+  });
+}
 function undoOnline(){
   if(!room)return;
   if(room.game.winner){const cursor=onlineReviewCursor??room.moveLog!.length;if(cursor<=0)return;clearResultOverlay();onlineReviewCursor=cursor-1;render();return}
+  const drafted=draftGame();
+  if(drafted.turnPlacements.length){
+    onlineDraft=undoLastPlacement(drafted);onlineDraftBase=room.game.revision;error="";
+    render(compareBoards(drafted.board,onlineDraft.board));
+    return;
+  }
   void action(async()=>{await submitUndo(code,room!.game.revision,serverNow())});
 }
 function changeOnlineOptions(){if(!room?.game.winner)return;openGameSettingsDialog("room",room.nextSettings??room.settings!,"black",settings=>void action(()=>changeRoomSettings(code,settings)))}
@@ -312,6 +371,8 @@ function queueComputerMove(delay=0){
 }
 async function runComputerMove(){
   if(!computerMode||!localGame||computerMode.loading||computerMode.loadFailed||computerMode.thinking||localLocked||localGame.game.winner||localGame.timeout.pendingFor||Date.now()<localGame.countdownEndsAt||localGame.game.currentPlayer!==computerMode.computerSide)return;
+  // the computer needs no confirmation: it hands over as soon as its turn is playable
+  if(localGame.canCommit){commitLocalTurn();return}
   const generation=computerMode.generation,revision=localGame.game.revision;computerMode.thinking=true;computerMode.progress=undefined;render();
   try{
     const difficulty=computerMode.difficulty;
@@ -343,6 +404,7 @@ function leave() {
   six = [];
   defeatSequenceRevision = -1;
   onlineReviewCursor=null;clearResultOverlay();
+  onlineDraft=null;onlineDraftBase=-1;ownTurnRevision=-1;
   subscriptionGeneration++;
   stopOffset?.(); stopOffset=undefined;
   stop?.();

@@ -22,8 +22,9 @@ export function moveTransition(
 ): BoardChange | undefined {
   if (!before || after.game.revision !== before.game.revision + 1) return;
   const change = compareBoards(before.game.board, after.game.board);
-  // Reconnect gaps and undo snapshots are restored immediately, never replayed.
-  return change.placed.length === 1 && !change.removed.length
+  // A turn arrives whole, so it lands one or two stones. Reconnect gaps and undo
+  // snapshots are restored immediately, never replayed.
+  return change.placed.length && change.placed.length <= 2 && !change.removed.length
     ? change
     : undefined;
 }

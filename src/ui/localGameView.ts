@@ -9,6 +9,7 @@ import { updateCountdown, updateTimeoutDialog } from "./timingView";
 
 export interface LocalGamePresentation extends BoardPresentation {
   canUndo:boolean; undo:()=>void; rematch?:()=>void; changeOptions?:()=>void;
+  commit?:()=>void; canCommit?:boolean; passing?:boolean;
   clock?:ClockState; settings?:GameSettings; now?:number; countdownEndsAt?:number;
   timeout?:TimeoutState; timeoutDecision?:(continueGame:boolean)=>void;
   mode?:"local"|"computer"; humanSide?:Player; computerSide?:Player;
@@ -26,7 +27,7 @@ export function localGameView(root:HTMLElement,game:GameState,busy:boolean,move:
   const mode=presentation.mode??"local";
   if(root.dataset.mode!==mode||!root.querySelector(".board")){
     root.dataset.mode=mode;delete root.dataset.room;
-    root.innerHTML='<h1>ReverSix!</h1><p class="local-title"></p><div class="game-status-area"><h2 class="turn-status" role="status"></h2><p class="computer-status status-empty" role="status"></p><p class="check status-empty"></p></div><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice status-empty" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="change-options" hidden></button><button class="undo" disabled></button><button class="back"></button></div><p class="game-error" role="alert" hidden></p><div class="result-overlay" hidden aria-live="assertive"><strong></strong></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
+    root.innerHTML='<h1>ReverSix!</h1><p class="local-title"></p><div class="game-status-area"><h2 class="turn-status" role="status"></h2><p class="computer-status status-empty" role="status"></p><p class="check status-empty"></p></div><div class="clock-board-layout"><aside class="player-clock clock-left"><span class="clock-color"></span><strong class="clock-time"></strong></aside><div class="board-wrap"><div class="board-slot"></div></div><aside class="player-clock clock-right"><span class="clock-color"></span><strong class="clock-time"></strong></aside></div><p class="local-count"></p><p class="notice status-empty" role="status"></p><div class="game-controls"><button class="rematch" hidden></button><button class="change-options" hidden></button><button class="commit" disabled></button><button class="undo" disabled></button><button class="back"></button></div><p class="game-error" role="alert" hidden></p><div class="result-overlay" hidden aria-live="assertive"><strong></strong></div><dialog class="timeout-dialog" aria-modal="true"></dialog>';
     const frame=boardWithCoordinates(game,false,move,finalPresentation);root.querySelector(".board-slot")!.append(frame);frame.querySelector(".board")!.append(Object.assign(document.createElement("div"),{className:"countdown-overlay",hidden:true,ariaLive:"assertive"}));
   }
   root.querySelector<HTMLElement>(".local-title")!.textContent=t(mode==="computer"?"computer.title":"local.title");
@@ -45,9 +46,11 @@ export function localGameView(root:HTMLElement,game:GameState,busy:boolean,move:
   const check=root.querySelector<HTMLElement>(".check")!;check.textContent=finished||!game.checkBy?"":t(`local.${game.checkBy}Check`);check.classList.toggle("status-empty",!check.textContent);
   updateBoard(root.querySelector<HTMLElement>(".board")!,game,!busy&&!finished&&!countingDown&&!timeout.pendingFor&&!(mode==="computer"&&(presentation.computerThinking||game.currentPlayer===presentation.computerSide)),move,finalPresentation);
   root.querySelector<HTMLElement>(".local-count")!.textContent=t("local.count",{black:game.board.filter(cell=>cell==="black").length,white:game.board.filter(cell=>cell==="white").length});
-  const notice=root.querySelector<HTMLElement>(".notice")!;notice.textContent=finished?"":game.events.filter(event=>event.endsWith(" PASS")||event.includes("SKIPPED")).map(localizeEvent).join(" · ");notice.classList.toggle("status-empty",!notice.textContent);
+  const noMoves=Boolean(presentation.passing)&&!finished&&!presentation.reviewing;
+  const notice=root.querySelector<HTMLElement>(".notice")!;notice.textContent=finished?"":noMoves?t("game.noMoves"):game.events.filter(event=>event.endsWith(" PASS")||event.includes("SKIPPED")).map(localizeEvent).join(" · ");notice.classList.toggle("status-empty",!notice.textContent);
   const rematch=root.querySelector<HTMLButtonElement>(".rematch")!;rematch.hidden=!finished;rematch.disabled=Boolean(timeout.pendingFor);rematch.textContent=t("game.rematch");rematch.onclick=()=>presentation.rematch?.();
   const changeOptions=root.querySelector<HTMLButtonElement>(".change-options")!;changeOptions.hidden=!finished;changeOptions.textContent=t("game.changeOptions");changeOptions.onclick=()=>presentation.changeOptions?.();
   const back=root.querySelector<HTMLButtonElement>(".back")!;back.textContent=t("game.back");back.onclick=leave;
+  const commit=root.querySelector<HTMLButtonElement>(".commit")!;commit.hidden=finished||Boolean(presentation.reviewing);commit.textContent=t(noMoves?"game.passTurn":"game.commitTurn");commit.classList.toggle("passing",noMoves);commit.disabled=!presentation.canCommit||busy||countingDown||Boolean(timeout.pendingFor)||(mode==="computer"&&(presentation.computerThinking||game.currentPlayer===presentation.computerSide));commit.onclick=()=>{if(!commit.disabled)presentation.commit?.()};
   const undo=root.querySelector<HTMLButtonElement>(".undo")!;undo.textContent=t("game.undo");undo.disabled=!presentation.canUndo||busy||countingDown||Boolean(timeout.pendingFor);undo.onclick=()=>{if(!undo.disabled)presentation.undo()};
 }

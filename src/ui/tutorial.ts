@@ -14,7 +14,7 @@ export const tutorialSteps: Step[] = [
   },
   {
     titleKey: "tutorial.step2.title",
-    paragraphKeys: ["tutorial.step2.p1", "tutorial.step2.p2"],
+    paragraphKeys: ["tutorial.step2.p1", "tutorial.step2.p2", "tutorial.step2.p3"],
     rows: ["BWW.", "BBBB"],
     captionKey: "tutorial.step2.caption",
   },

@@ -1,6 +1,6 @@
 import { get, onValue, ref, runTransaction, type Database } from "firebase/database";
-import { createGame, playMove } from "../game/gameState";
-import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, commitElapsed, initialClock, mayUndo, replayMoves, validSettings, type ClockState, type GameSettings, type MoveRecord, type TimeoutState } from "../game/session";
+import { commitTurn, createGame, placeStone } from "../game/gameState";
+import { COUNTDOWN_MS, DEFAULT_SETTINGS, EMPTY_TIMEOUT, commitElapsed, initialClock, mayUndo, replayTurns, validSettings, type ClockState, type GameSettings, type TurnRecord, type TimeoutState } from "../game/session";
 import { other, type Player } from "../game/types";
 import { connection, onlineOperation } from "./firebase";
 
@@ -12,13 +12,13 @@ export interface Room {
   settings?: GameSettings;
   nextSettings?: GameSettings;
   clock?: ClockState;
-  moveLog?: MoveRecord[];
+  moveLog?: TurnRecord[];
   rematch?: RematchState;
   countdownEndsAt?: number;
   timeout?: TimeoutState;
   game: ReturnType<typeof createGame>;
 }
-export interface NormalizedRoom extends Room { settings:GameSettings; clock:ClockState; moveLog:MoveRecord[]; rematch:RematchState; countdownEndsAt:number; timeout:TimeoutState }
+export interface NormalizedRoom extends Room { settings:GameSettings; clock:ClockState; moveLog:TurnRecord[]; rematch:RematchState; countdownEndsAt:number; timeout:TimeoutState }
 export const CODE_PATTERN = /^[A-HJ-NP-Z2-9]{6}$/;
 export function randomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -31,13 +31,11 @@ export function newRoom(uid: string, settings: GameSettings = DEFAULT_SETTINGS, 
 export function normalizeRoom(value: Room): NormalizedRoom {
   const {nextSettings:rawNextSettings,...base}=value;
   const settings = { ...DEFAULT_SETTINGS, ...(value.settings ?? {}) };
-  const moveLog=value.moveLog??[];
-  const fallbackTurnStart=value.game.moveNumberInTurn===2&&moveLog.length
-    ? replayMoves(settings,moveLog.slice(0,-1),value.game.revision).game.board
-    : value.game.board;
+  // Firebase drops empty arrays, so a pass comes back without its `cells` key.
+  const moveLog=(value.moveLog??[]).map(record=>({...record,cells:[...(record.cells??[])]}));
   const nextCandidate=rawNextSettings?{...DEFAULT_SETTINGS,...rawNextSettings}:undefined;
   const nextSettings=nextCandidate&&validSettings(nextCandidate)?nextCandidate:undefined;
-  return { ...base, ...(nextSettings?{nextSettings}:{}), settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??fallbackTurnStart)], events: value.game.events ?? [] } };
+  return { ...base, ...(nextSettings?{nextSettings}:{}), settings, clock: value.clock ?? initialClock(settings), moveLog, rematch: value.rematch ?? { black:false, white:false, generation:0 }, countdownEndsAt:value.countdownEndsAt??0, timeout:{...EMPTY_TIMEOUT,...(value.timeout??{})}, game: { ...value.game, turnStartBoard:[...(value.game.turnStartBoard??value.game.board)], turnPlacements:[...(value.game.turnPlacements??[])], events: value.game.events ?? [] } };
 }
 export function joinRoomState(value: Room | null, uid: string, now = Date.now()): NormalizedRoom {
   if (!value) throw new Error("ROOM NOT FOUND");
@@ -52,7 +50,12 @@ function assertMember(room: NormalizedRoom, uid: string): Player {
   if (room.players.white === uid) return "white";
   throw new Error("NOT A PLAYER");
 }
-export function moveRoomState(value: Room, uid: string, revision: number, index: number, now = Date.now()): NormalizedRoom {
+/**
+ * Applies a whole confirmed turn. Only committed turns cross the wire — the stones a
+ * player is still trying out stay on their own screen — so the stored game is always at
+ * a turn boundary, and one submission is exactly one revision.
+ */
+export function turnRoomState(value: Room, uid: string, revision: number, cells: number[], now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
   if (room.status !== "playing") throw new Error("GAME IS NOT ACTIVE");
   if(now<room.countdownEndsAt)throw new Error("GAME IS COUNTING DOWN");
@@ -64,9 +67,11 @@ export function moveRoomState(value: Room, uid: string, revision: number, index:
   const clockKey=player === "black" ? "blackRemainingMs" : "whiteRemainingMs";
   if (!room.timeout.continueWithoutClock && room.settings.clockEnabled && committed.clock[clockKey] <= 0)
     return{...room,game:{...room.game,revision:room.game.revision+1,events:[]},timeout:{pendingFor:player,continueWithoutClock:false},clock:{...committed.clock,[clockKey]:0,running:false}};
-  const game = playMove(room.game, player, index);
+  let played = room.game;
+  for (const cell of cells) played = placeStone(played, player, cell);
+  const game = { ...commitTurn(played), revision: room.game.revision + 1 };
   const finished = Boolean(game.winner);
-  return { ...room, game, moveLog: [...room.moveLog, { index, player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: room.settings.clockEnabled && !room.timeout.continueWithoutClock && !finished } };
+  return { ...room, game, moveLog: [...room.moveLog, { cells: [...cells], player, elapsedMs: committed.elapsedMs }], status: finished ? "finished" : "playing", clock: { ...committed.clock, activeSince: now, running: room.settings.clockEnabled && !room.timeout.continueWithoutClock && !finished } };
 }
 export function undoRoomState(value: Room, uid: string, revision: number = value.game.revision, now = Date.now()): NormalizedRoom {
   const room = normalizeRoom(value);
@@ -77,7 +82,7 @@ export function undoRoomState(value: Room, uid: string, revision: number = value
   if (room.game.revision !== revision) throw new Error("STATE CHANGED — TRY AGAIN");
   if (!mayUndo(room.game, room.moveLog, room.settings.undoMode)) throw new Error("UNDO IS NOT AVAILABLE");
   const records = room.moveLog.slice(0, -1);
-  const rebuilt = replayMoves(room.settings, records, room.game.revision + 1);
+  const rebuilt = replayTurns(room.settings, records, room.game.revision + 1);
   return { ...room, moveLog: records, game: rebuilt.game, clock: { blackRemainingMs: rebuilt.blackRemainingMs, whiteRemainingMs: rebuilt.whiteRemainingMs, activeSince: now, running: room.settings.clockEnabled && !room.timeout.continueWithoutClock } };
 }
 export function timeoutRoomState(value: Room, uid: string, now = Date.now()): NormalizedRoom {
@@ -139,7 +144,7 @@ export async function joinRoom(code: string) {
     const result=await runTransaction(roomRef,current=>{try{return joinRoomState(current??snapshot.val(),uid,now)}catch(e){failure=(e as Error).message;return}},{applyLocally:false}); if(!result.committed)throw new Error(failure);
   });
 }
-export const submitMove=(code:string,revision:number,index:number,now=Date.now())=>transaction("submit move",code,(r,u)=>moveRoomState(r,u,revision,index,now));
+export const submitTurn=(code:string,revision:number,cells:number[],now=Date.now())=>transaction("submit turn",code,(r,u)=>turnRoomState(r,u,revision,cells,now));
 export const submitUndo=(code:string,revision:number,now=Date.now())=>transaction("submit undo",code,(r,u)=>undoRoomState(r,u,revision,now));
 export const submitTimeout=(code:string,now=Date.now())=>transaction("submit timeout",code,(r,u)=>timeoutRoomState(r,u,now));
 export const submitTimeoutDecision=(code:string,continueGame:boolean)=>transaction("submit timeout decision",code,(r,u)=>resolveTimeoutRoomState(r,u,continueGame));
